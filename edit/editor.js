@@ -139,7 +139,10 @@ async function openFile(fileId) {
     loadEditor(fileId, meta.name, text);
   } catch (e) {
     console.error(e);
-    showError("Couldn't load this file from Drive. Check your connection and try again.");
+    // Shown on-page, not just logged to the console -- on a phone there's no
+    // way to actually see the console, so a generic message here would leave
+    // both the user and whoever's debugging this with nothing to go on.
+    showError(`Couldn't load this file from Drive.\n\n${e && e.message ? e.message : e}`);
   }
 }
 
@@ -168,7 +171,15 @@ function loadEditor(fileId, name, text, folderId) {
   currentFileName = name;
   savedContent = text;
   filenameInput.value = name;
+  filenameInput.readOnly = false;
   contentArea.value = text;
+  // Explicit, defensive: neither should ever be true, since nothing in this
+  // file sets them -- but a real report of a selectable-but-uneditable
+  // content area (readOnly's exact signature, unlike disabled) with no way
+  // to see a console on the phone it happened on means "nothing sets it" is
+  // a claim worth actively enforcing here, not just trusting.
+  contentArea.readOnly = false;
+  contentArea.disabled = false;
   setSaveStatus("Saved");
   showScreen("editor");
   contentArea.focus();
@@ -224,7 +235,14 @@ async function driveFetch(path, opts = {}) {
   const response = await fetch(`https://www.googleapis.com${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  if (!response.ok) throw new Error(`Drive API ${response.status}`);
+  if (!response.ok) {
+    // Google's own error responses are real JSON explaining exactly what
+    // went wrong (permission denied, invalid file ID, etc.) -- surfacing
+    // that instead of just the bare status code is the difference between
+    // an actionable error and a guess, especially with no console access.
+    const bodyText = await response.text().catch(() => "");
+    throw new Error(`Drive API ${response.status}${bodyText ? `: ${bodyText.slice(0, 300)}` : ""}`);
+  }
   return opts.raw ? response : response.json();
 }
 
@@ -286,5 +304,17 @@ async function createFile(name, content, folderId) {
   const created = await response.json();
   return created.id;
 }
+
+// Safety net: any uncaught error anywhere on this page surfaces on the error
+// screen instead of leaving a confusing half-loaded UI with nothing to go
+// on -- added after a real report of exactly that (a filename that looked
+// like an error message, a content area that wouldn't accept typing) with
+// no way to see what actually went wrong, since there's no console access
+// on a phone.
+window.addEventListener("error", (e) => showError(`Unexpected error: ${e.message}`));
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = e.reason;
+  showError(`Unexpected error: ${reason && reason.message ? reason.message : reason}`);
+});
 
 initAuthWhenReady();
