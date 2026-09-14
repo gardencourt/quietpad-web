@@ -65,7 +65,11 @@ This is what makes "right-click a file in Drive → Open with QuietPad" and
 
 1. **APIs & Services → Drive API → Drive UI integration** tab:
    - **Open URL**: `https://quietpad.co.uk/edit/`
-   - **Icon**: QuietPad icon (reuse the Android app's icon asset).
+   - **Icon**: `icons/icon-512.png` — rendered directly from the Android app's own
+     vector drawable (`ic_launcher_background.xml` + `ic_launcher_foreground.xml`
+     in `ownote`), not a separately-designed asset, so it matches the app icon
+     exactly. Also used for the Marketplace listing icon and the site's own
+     favicon (`icon-192.png`).
    - **Supported MIME types**: broad, general-purpose on purpose — e.g.
      `text/plain`, `text/markdown` — **not** the narrow custom
      `application/vnd.quietpad.note+markdown` type the Android app uses to
