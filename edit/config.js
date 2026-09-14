@@ -9,12 +9,12 @@ const QUIETPAD_CONFIG = {
   // OAuth 2.0 Web client ID (same Cloud Console project as the Android app —
   // reuses its existing Web client, see README) — looks like
   // "1234567890-abc...apps.googleusercontent.com".
-  CLIENT_ID: "REPLACE_WITH_WEB_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+  CLIENT_ID: "512190405541-lob5ukih13kkmrsb49ei1jv8o12i83la.apps.googleusercontent.com",
 
   // API key for the Google Picker API (separate from the OAuth client above —
   // Credentials → Create Credentials → API key, then restrict it to the
   // Picker API and to this site's domain).
-  PICKER_API_KEY: "REPLACE_WITH_PICKER_API_KEY",
+  PICKER_API_KEY: "AIzaSyCG1Poi0azTN9vUMGh7sSOKyyJuIDFOrFw",
 
   // drive.file only — this app only ever sees a file once the user has
   // explicitly picked it (via Picker) or it was handed off directly by Drive
