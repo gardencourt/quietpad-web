@@ -6,7 +6,7 @@
 <title>QuietPad Editor</title>
 <link rel="icon" type="image/png" href="../icons/icon-192.png">
 <link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="editor.css">
+<link rel="stylesheet" href="editor.css?v=3">
 </head>
 <body>
   <!--
@@ -47,6 +47,9 @@
       <input id="filename-input" type="text" class="filename-input" spellcheck="false">
       <span id="save-status" class="save-status">Saved</span>
     </div>
+    <!-- TEMPORARY debug line, see editor.js's openFile -- remove once the
+         "There was an error!" filename report is understood. -->
+    <div id="debug-info" style="font-size:11px;color:#e0805a;padding:4px 16px;word-break:break-all;"></div>
     <textarea id="content-area" class="content-area" spellcheck="false" placeholder="Start typing&hellip;"></textarea>
   </div>
 
@@ -62,7 +65,7 @@
   <!-- Google Identity Services (sign-in) and the API client loader (Picker) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js" async defer></script>
-  <script src="config.js"></script>
-  <script src="editor.js"></script>
+  <script src="config.js?v=3"></script>
+  <script src="editor.js?v=3"></script>
 </body>
 </html>

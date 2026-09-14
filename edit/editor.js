@@ -105,6 +105,13 @@ function openPicker() {
     const picker = new google.picker.PickerBuilder()
       .setOAuthToken(accessToken)
       .setDeveloperKey(QUIETPAD_CONFIG.PICKER_API_KEY)
+      // Required for drive.file-scoped Picker use, per Google's own docs --
+      // the Cloud project number, which is also the numeric prefix on the
+      // OAuth Client ID itself (before the first "-"), so it's derived here
+      // rather than duplicated as a separate config value. Without this,
+      // Picker can fail outright ("There was an error!") or return a file ID
+      // whose *later* requests 404, even though the pick itself looked fine.
+      .setAppId(QUIETPAD_CONFIG.CLIENT_ID.split("-")[0])
       .addView(view)
       .setCallback((data) => {
         if (data.action === google.picker.Action.PICKED) {
@@ -130,6 +137,14 @@ const UNSUPPORTED_PREFIX = "application/vnd.google-apps.";
 async function openFile(fileId) {
   try {
     const meta = await driveFetch(`/drive/v3/files/${fileId}?fields=id,name,mimeType`);
+    // TEMPORARY, for live debugging a real report of a wrong-looking filename
+    // despite correct content and an unmodified real Drive file -- shown
+    // on-page (not just console.log, which is unreachable on a phone),
+    // exactly as received, since something between this response and the
+    // filename input ending up wrong isn't understood yet. Remove once
+    // resolved.
+    const debugEl = document.getElementById("debug-info");
+    if (debugEl) debugEl.textContent = "DEBUG meta: " + JSON.stringify(meta);
     if (meta.mimeType.startsWith(UNSUPPORTED_PREFIX)) {
       showError(`"${meta.name}" is a Google ${meta.mimeType.split(".").pop()} file, not plain text — QuietPad can only edit plain text/markdown files.`);
       return;
