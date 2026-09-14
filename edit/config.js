@@ -14,7 +14,7 @@ const QUIETPAD_CONFIG = {
   // API key for the Google Picker API (separate from the OAuth client above —
   // Credentials → Create Credentials → API key, then restrict it to the
   // Picker API and to this site's domain).
-  PICKER_API_KEY: "AIzaSyCG1Poi0azTN9vUMGh7sSOKyyJuIDFOrFw",
+  PICKER_API_KEY: "AIzaSyCxRC9lxN3I3nRbyyZjStd7hkIkKyOY86A",
 
   // drive.file only — this app only ever sees a file once the user has
   // explicitly picked it (via Picker) or it was handed off directly by Drive
