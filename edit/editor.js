@@ -42,20 +42,28 @@ function parseDriveState() {
 }
 
 /** Keeps the URL in sync with the file currently open, in the same
- *  ?state= shape Drive's own hand-off uses (see parseDriveState). Without
- *  this, opening a file via Picker never touched the URL at all, so any
- *  full reload of the tab -- back/forward navigation, a stray Enter in the
- *  address bar, the tab being discarded and restored -- lost the in-memory
- *  access token and which file was open, landing back on a blank sign-in
- *  screen with no way to get back to the file. A reload now re-parses this
- *  same state and silently reopens the same file instead. (Browser
- *  back/forward is especially prone to forcing a full reload rather than a
- *  bfcache restore here, since the beforeunload listener below opts the
- *  page out of bfcache in most browsers.) */
+ *  ?state= shape Drive's own hand-off uses (see parseDriveState) -- mainly
+ *  so the URL is meaningful if copied/bookmarked. This alone doesn't
+ *  survive browser back navigation, though: back doesn't reload *this*
+ *  document with its (replaced) URL, it navigates to whatever history
+ *  entry came before this whole /edit/ visit -- so REMEMBERED_FILE_KEY in
+ *  sessionStorage below is the mechanism that actually recovers the open
+ *  file, independent of history/URL mechanics entirely. */
 function updateUrlState(fileId) {
   const state = encodeURIComponent(JSON.stringify({ action: "open", ids: [fileId] }));
   history.replaceState(null, "", `${window.location.pathname}?state=${state}`);
+  sessionStorage.setItem(REMEMBERED_FILE_KEY, fileId);
 }
+
+// Real report: browser back navigation (after opening a file) landed back
+// on a blank sign-in screen with no memory of which file had been open --
+// likely because the beforeunload listener below opts this page out of
+// bfcache in most browsers, so back forces a full fresh reload rather than
+// an instant in-memory restore. sessionStorage survives that reload (unlike
+// our plain JS variables), scoped to just this tab, so it's what actually
+// lets a reload -- from back/forward, a stray refresh, or a discarded and
+// restored tab -- reopen the same file instead of losing it.
+const REMEMBERED_FILE_KEY = "quietpad-last-open-file-id";
 
 const screens = {
   signin: document.getElementById("signin-screen"),
@@ -110,8 +118,8 @@ function initAuthWhenReady() {
   // opening a file via "Open with" doesn't force a visible sign-in click
   // when a session already exists.
   const state = parseDriveState();
-  if (state) {
-    debugLog("Drive state present on load: " + JSON.stringify(state));
+  if (state || sessionStorage.getItem(REMEMBERED_FILE_KEY)) {
+    debugLog("Drive state or remembered file present on load: " + JSON.stringify(state));
     tokenClient.requestAccessToken({ prompt: "" });
   } else {
     debugLog("No Drive state on load (plain visit)");
@@ -121,10 +129,13 @@ function initAuthWhenReady() {
 function onSignedIn() {
   const state = parseDriveState();
   debugLog("onSignedIn, state=" + JSON.stringify(state));
+  const rememberedFileId = sessionStorage.getItem(REMEMBERED_FILE_KEY);
   if (state && state.action === "open" && state.ids && state.ids[0]) {
     openFile(state.ids[0]);
   } else if (state && state.action === "create") {
     startNewFile(state.folderId || null);
+  } else if (rememberedFileId) {
+    openFile(rememberedFileId);
   } else {
     showScreen("picker");
   }
