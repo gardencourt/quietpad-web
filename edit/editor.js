@@ -41,6 +41,22 @@ function parseDriveState() {
   }
 }
 
+/** Keeps the URL in sync with the file currently open, in the same
+ *  ?state= shape Drive's own hand-off uses (see parseDriveState). Without
+ *  this, opening a file via Picker never touched the URL at all, so any
+ *  full reload of the tab -- back/forward navigation, a stray Enter in the
+ *  address bar, the tab being discarded and restored -- lost the in-memory
+ *  access token and which file was open, landing back on a blank sign-in
+ *  screen with no way to get back to the file. A reload now re-parses this
+ *  same state and silently reopens the same file instead. (Browser
+ *  back/forward is especially prone to forcing a full reload rather than a
+ *  bfcache restore here, since the beforeunload listener below opts the
+ *  page out of bfcache in most browsers.) */
+function updateUrlState(fileId) {
+  const state = encodeURIComponent(JSON.stringify({ action: "open", ids: [fileId] }));
+  history.replaceState(null, "", `${window.location.pathname}?state=${state}`);
+}
+
 const screens = {
   signin: document.getElementById("signin-screen"),
   picker: document.getElementById("picker-screen"),
@@ -183,6 +199,7 @@ async function openFile(fileId) {
     const text = await contentResponse.text();
     debugLog(`Content fetched, ${text.length} chars`);
     loadEditor(fileId, meta.name, text);
+    updateUrlState(fileId);
   } catch (e) {
     debugLog("openFile failed: " + (e && e.message ? e.message : e));
     // Shown on-page, not just logged to the console -- on a phone there's no
@@ -303,6 +320,7 @@ async function save() {
     if (!currentFileId) {
       currentFileId = await createFile(name, content, currentFolderId);
       debugLog("Created file: " + currentFileId);
+      updateUrlState(currentFileId);
     } else {
       if (name !== currentFileName) await updateMetadata(currentFileId, name);
       await updateContent(currentFileId, content);
