@@ -47,9 +47,6 @@
       <input id="filename-input" type="text" class="filename-input" spellcheck="false">
       <span id="save-status" class="save-status">Saved</span>
     </div>
-    <!-- TEMPORARY debug line, see editor.js's openFile -- remove once the
-         "There was an error!" filename report is understood. -->
-    <div id="debug-info" style="font-size:11px;color:#e0805a;padding:4px 16px;word-break:break-all;"></div>
     <textarea id="content-area" class="content-area" spellcheck="false" placeholder="Start typing&hellip;"></textarea>
   </div>
 
@@ -62,10 +59,18 @@
     </div>
   </div>
 
+  <!-- TEMPORARY: a live event log, deliberately OUTSIDE the .screen divs above
+       (fixed position, always in the DOM) so it stays visible no matter which
+       screen is actually showing -- unlike the previous debug line, which
+       lived inside #editor-screen and so was invisible for exactly the cases
+       that most needed explaining (never actually reaching that screen).
+       Remove once the "There was an error!" report is understood. -->
+  <div id="debug-log" style="position:fixed;left:0;right:0;bottom:0;max-height:35vh;overflow-y:auto;background:#000;color:#0f0;font:10px monospace;padding:6px;z-index:9999;white-space:pre-wrap;word-break:break-all;"></div>
+
   <!-- Google Identity Services (sign-in) and the API client loader (Picker) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js" async defer></script>
-  <script src="config.js?v=3"></script>
-  <script src="editor.js?v=3"></script>
+  <script src="config.js?v=4"></script>
+  <script src="editor.js?v=4"></script>
 </body>
 </html>

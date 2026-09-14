@@ -5,6 +5,25 @@
 // will actually work.
 
 const AUTOSAVE_DEBOUNCE_MS = 1000;
+const APP_FOLDER_NAME = "QuietPad";
+const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+
+// TEMPORARY: a live, always-visible event log (see index.html's #debug-log,
+// deliberately outside the .screen divs so it survives regardless of which
+// screen is actually showing). Remove once the "There was an error!" report
+// is understood -- this exists because console.log is unreachable when
+// debugging happens on a phone, and the previous debug line (inside
+// #editor-screen only) was invisible for exactly the cases that most needed
+// explaining: never actually reaching that screen at all.
+function debugLog(msg) {
+  const el = document.getElementById("debug-log");
+  if (el) {
+    const t = new Date().toISOString().slice(11, 23);
+    el.textContent += `[${t}] ${msg}\n`;
+    el.scrollTop = el.scrollHeight;
+  }
+  console.log(msg);
+}
 
 /** Google's own format for a Drive UI integration hand-off (the "Open with"
  *  and "New" entries) — see the Cloud Console "Drive UI integration" tab.
@@ -17,7 +36,7 @@ function parseDriveState() {
   try {
     return JSON.parse(raw);
   } catch (e) {
-    console.error("Unparseable Drive state", e);
+    debugLog("parseDriveState: unparseable state param: " + raw);
     return null;
   }
 }
@@ -30,6 +49,7 @@ const screens = {
 };
 
 function showScreen(name) {
+  debugLog("showScreen: " + name);
   for (const key in screens) screens[key].hidden = key !== name;
 }
 
@@ -51,32 +71,40 @@ function initAuthWhenReady() {
     setTimeout(initAuthWhenReady, 100);
     return;
   }
+  debugLog("google.accounts ready, initializing token client");
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: QUIETPAD_CONFIG.CLIENT_ID,
     scope: QUIETPAD_CONFIG.SCOPE,
     callback: (response) => {
       if (response.error) {
-        console.error("Auth failed", response);
+        debugLog("Auth failed: " + JSON.stringify(response));
         return;
       }
+      debugLog("Auth succeeded, got access token");
       accessToken = response.access_token;
       onSignedIn();
     }
   });
   document.getElementById("signin-button").addEventListener("click", () => {
+    debugLog("Sign in button clicked");
     tokenClient.requestAccessToken({ prompt: "consent" });
   });
   // A Drive hand-off already implies the user is a real Google account
   // holder currently inside Drive — try a silent (no-prompt) token first so
   // opening a file via "Open with" doesn't force a visible sign-in click
   // when a session already exists.
-  if (parseDriveState()) {
+  const state = parseDriveState();
+  if (state) {
+    debugLog("Drive state present on load: " + JSON.stringify(state));
     tokenClient.requestAccessToken({ prompt: "" });
+  } else {
+    debugLog("No Drive state on load (plain visit)");
   }
 }
 
 function onSignedIn() {
   const state = parseDriveState();
+  debugLog("onSignedIn, state=" + JSON.stringify(state));
   if (state && state.action === "open" && state.ids && state.ids[0]) {
     openFile(state.ids[0]);
   } else if (state && state.action === "create") {
@@ -92,13 +120,16 @@ let pickerLoaded = false;
 
 function ensurePickerLoaded(onReady) {
   if (pickerLoaded) return onReady();
+  debugLog("Loading Picker library");
   gapi.load("picker", () => {
     pickerLoaded = true;
+    debugLog("Picker library loaded");
     onReady();
   });
 }
 
 function openPicker() {
+  debugLog("openPicker called");
   ensurePickerLoaded(() => {
     const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
       .setMode(google.picker.DocsViewMode.LIST);
@@ -114,17 +145,22 @@ function openPicker() {
       .setAppId(QUIETPAD_CONFIG.CLIENT_ID.split("-")[0])
       .addView(view)
       .setCallback((data) => {
+        debugLog("Picker callback fired: " + JSON.stringify(data));
         if (data.action === google.picker.Action.PICKED) {
           openFile(data.docs[0].id);
         }
       })
       .build();
+    debugLog("Showing Picker");
     picker.setVisible(true);
   });
 }
 
 document.getElementById("open-button").addEventListener("click", openPicker);
-document.getElementById("new-button").addEventListener("click", () => startNewFile(null));
+document.getElementById("new-button").addEventListener("click", () => {
+  debugLog("New file button clicked");
+  startNewFile(null);
+});
 
 // --- Loading a file ------------------------------------------------------
 
@@ -135,25 +171,20 @@ document.getElementById("new-button").addEventListener("click", () => startNewFi
 const UNSUPPORTED_PREFIX = "application/vnd.google-apps.";
 
 async function openFile(fileId) {
+  debugLog("openFile called with fileId=" + fileId);
   try {
     const meta = await driveFetch(`/drive/v3/files/${fileId}?fields=id,name,mimeType`);
-    // TEMPORARY, for live debugging a real report of a wrong-looking filename
-    // despite correct content and an unmodified real Drive file -- shown
-    // on-page (not just console.log, which is unreachable on a phone),
-    // exactly as received, since something between this response and the
-    // filename input ending up wrong isn't understood yet. Remove once
-    // resolved.
-    const debugEl = document.getElementById("debug-info");
-    if (debugEl) debugEl.textContent = "DEBUG meta: " + JSON.stringify(meta);
+    debugLog("Metadata response: " + JSON.stringify(meta));
     if (meta.mimeType.startsWith(UNSUPPORTED_PREFIX)) {
       showError(`"${meta.name}" is a Google ${meta.mimeType.split(".").pop()} file, not plain text — QuietPad can only edit plain text/markdown files.`);
       return;
     }
     const contentResponse = await driveFetch(`/drive/v3/files/${fileId}?alt=media`, { raw: true });
     const text = await contentResponse.text();
+    debugLog(`Content fetched, ${text.length} chars`);
     loadEditor(fileId, meta.name, text);
   } catch (e) {
-    console.error(e);
+    debugLog("openFile failed: " + (e && e.message ? e.message : e));
     // Shown on-page, not just logged to the console -- on a phone there's no
     // way to actually see the console, so a generic message here would leave
     // both the user and whoever's debugging this with nothing to go on.
@@ -161,11 +192,50 @@ async function openFile(fileId) {
   }
 }
 
-function startNewFile(folderId) {
+/** Mirrors the Android app's own DriveSyncManager.findOrCreateAppFolder --
+ *  same folder name, so a note created here shows up alongside the Android
+ *  app's own notes instead of landing loose at Drive's root. A real report:
+ *  "New file" had no folderId to pass to createFile at all in the
+ *  standalone (non-Drive-handoff) case, so it fell back to Drive's default,
+ *  the root of My Drive. */
+async function findOrCreateAppFolder() {
+  const q = encodeURIComponent(`name = '${APP_FOLDER_NAME}' and mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`);
+  const result = await driveFetch(`/drive/v3/files?q=${q}&orderBy=createdTime&fields=files(id)`);
+  if (result.files && result.files.length > 0) {
+    debugLog("Found existing QuietPad folder: " + result.files[0].id);
+    return result.files[0].id;
+  }
+  debugLog("No QuietPad folder found, creating one");
+  const response = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ name: APP_FOLDER_NAME, mimeType: FOLDER_MIME_TYPE })
+  });
+  if (!response.ok) throw new Error(`Drive API ${response.status}`);
+  const created = await response.json();
+  debugLog("Created QuietPad folder: " + created.id);
+  return created.id;
+}
+
+async function startNewFile(folderId) {
+  debugLog("startNewFile called, folderId=" + folderId);
+  let targetFolderId = folderId;
+  if (!targetFolderId) {
+    try {
+      targetFolderId = await findOrCreateAppFolder();
+    } catch (e) {
+      // Better to still create the file (at Drive's root) than to block
+      // "New file" entirely just because the folder lookup itself failed.
+      debugLog("findOrCreateAppFolder failed, falling back to Drive root: " + (e && e.message ? e.message : e));
+    }
+  }
   // Deferred creation, same reasoning as the Android app's own lazy note
   // creation: nothing is actually written to Drive until there's real
   // content to save, so abandoning a blank "New file" leaves nothing behind.
-  loadEditor(null, "Untitled.txt", "", folderId);
+  loadEditor(null, "Untitled.txt", "", targetFolderId);
 }
 
 // --- Editor ---------------------------------------------------------------
@@ -181,6 +251,7 @@ const contentArea = document.getElementById("content-area");
 const saveStatus = document.getElementById("save-status");
 
 function loadEditor(fileId, name, text, folderId) {
+  debugLog(`loadEditor: fileId=${fileId} name=${JSON.stringify(name)} folderId=${folderId} textLen=${text.length}`);
   currentFileId = fileId;
   currentFolderId = folderId || null;
   currentFileName = name;
@@ -231,6 +302,7 @@ async function save() {
   try {
     if (!currentFileId) {
       currentFileId = await createFile(name, content, currentFolderId);
+      debugLog("Created file: " + currentFileId);
     } else {
       if (name !== currentFileName) await updateMetadata(currentFileId, name);
       await updateContent(currentFileId, content);
@@ -239,7 +311,7 @@ async function save() {
     savedContent = content;
     setSaveStatus("Saved");
   } catch (e) {
-    console.error(e);
+    debugLog("save failed: " + (e && e.message ? e.message : e));
     setSaveStatus("Couldn't save — check your connection", true);
   }
 }
@@ -326,10 +398,16 @@ async function createFile(name, content, folderId) {
 // like an error message, a content area that wouldn't accept typing) with
 // no way to see what actually went wrong, since there's no console access
 // on a phone.
-window.addEventListener("error", (e) => showError(`Unexpected error: ${e.message}`));
+window.addEventListener("error", (e) => {
+  debugLog("window error: " + e.message);
+  showError(`Unexpected error: ${e.message}`);
+});
 window.addEventListener("unhandledrejection", (e) => {
   const reason = e.reason;
-  showError(`Unexpected error: ${reason && reason.message ? reason.message : reason}`);
+  const msg = reason && reason.message ? reason.message : reason;
+  debugLog("unhandledrejection: " + msg);
+  showError(`Unexpected error: ${msg}`);
 });
 
+debugLog("editor.js loaded, URL=" + window.location.href);
 initAuthWhenReady();
