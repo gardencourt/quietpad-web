@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuietPad Editor</title>
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <!--
+    Three screens, exactly one visible at a time (toggled via [hidden] in
+    editor.js — never inline style.display, see that file's own notes):
+      #signin-screen  — not yet authorized
+      #picker-screen  — authorized, but no file loaded yet (a plain visit,
+                         no Drive handoff) — this is the Notepad-style
+                         "File > Open / File > New" screen
+      #editor-screen  — a file is loaded and editable
+      #error-screen   — loaded, but this file can't be edited here
+  -->
+
+  <div id="signin-screen" class="screen">
+    <div class="centered">
+      <span class="brand-mark" aria-hidden="true">&#128221;</span>
+      <h1>QuietPad</h1>
+      <p class="muted">Sign in with Google to open a file from your Drive.</p>
+      <button id="signin-button" class="button button-primary button-large">Sign in with Google</button>
+    </div>
+  </div>
+
+  <div id="picker-screen" class="screen" hidden>
+    <div class="centered">
+      <span class="brand-mark" aria-hidden="true">&#128221;</span>
+      <h1>QuietPad</h1>
+      <p class="muted">Open an existing file, or start a new one.</p>
+      <div class="button-row">
+        <button id="open-button" class="button button-primary">Open a file&hellip;</button>
+        <button id="new-button" class="button">New file</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editor-screen" class="screen" hidden>
+    <div class="editor-topbar">
+      <a href="../" class="icon-button" title="Home" aria-label="Home">&#8592;</a>
+      <input id="filename-input" type="text" class="filename-input" spellcheck="false">
+      <span id="save-status" class="save-status">Saved</span>
+    </div>
+    <textarea id="content-area" class="content-area" spellcheck="false" placeholder="Start typing&hellip;"></textarea>
+  </div>
+
+  <div id="error-screen" class="screen" hidden>
+    <div class="centered">
+      <span class="brand-mark" aria-hidden="true">&#9888;&#65039;</span>
+      <h1>Can&rsquo;t open this file</h1>
+      <p id="error-message" class="muted"></p>
+      <a href="../" class="button">Back to QuietPad</a>
+    </div>
+  </div>
+
+  <!-- Google Identity Services (sign-in) and the API client loader (Picker) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+  <script src="config.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

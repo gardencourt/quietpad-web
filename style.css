@@ -1,0 +1,115 @@
+:root {
+  --bg: #fdfcf9;
+  --surface: #ffffff;
+  --border: #e4e1d8;
+  --text: #1f1d18;
+  --text-muted: #6b6656;
+  --accent: #8a6d3b;
+  --accent-contrast: #ffffff;
+  --error: #b3421d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17140f;
+    --surface: #211d16;
+    --border: #3a352a;
+    --text: #ece7db;
+    --text-muted: #a89f8b;
+    --accent: #d3ab6e;
+    --accent-contrast: #17140f;
+    --error: #e0805a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+a { color: var(--accent); }
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.brand-mark { font-size: 1.3rem; }
+
+.button {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+  background: var(--surface);
+  font-weight: 500;
+}
+
+.button-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+
+.button-large { padding: 12px 28px; font-size: 1.05rem; }
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.hero { text-align: center; padding-bottom: 32px; }
+.hero h1 { font-size: 2rem; margin-bottom: 12px; }
+.hero-sub { color: var(--text-muted); max-width: 520px; margin: 0 auto 28px; }
+.hero-hint { color: var(--text-muted); font-size: 0.9rem; margin-top: 16px; }
+
+.how { padding: 32px 0; border-top: 1px solid var(--border); }
+.how ol { color: var(--text-muted); padding-left: 20px; }
+.how li { margin-bottom: 8px; }
+
+.products { padding: 32px 0; border-top: 1px solid var(--border); }
+.product-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.product-card {
+  display: block;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  background: var(--surface);
+}
+.product-card h3 { margin: 0 0 6px; }
+.product-card p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+
+.site-footer {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
