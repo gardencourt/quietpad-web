@@ -93,17 +93,46 @@ GitHub Pages per
 [GitHub's own custom-domain docs](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site).
 The `CNAME` file here already has the domain name Pages needs.
 
+## Local device files (no Google account needed)
+
+A plain visit no longer forces sign-in — the start screen offers **New
+file** and **Open from this device…** alongside **Open from Google
+Drive…**, and the first two work with no Google account at all. Local
+open/save uses the browser's [File System Access
+API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API)
+(`showOpenFilePicker`/`showSaveFilePicker`) for a real, writable handle —
+"Save" overwrites the original file on disk directly, the same as desktop
+Notepad. Chromium browsers only as of writing; Firefox and Safari fall back
+to a plain `<input type=file>` for opening and a one-shot download for
+saving (see `FS_ACCESS_SUPPORTED` in `edit/editor.js`).
+
+A brand-new file (or one opened via the no-File-System-Access-API fallback)
+has no save target yet — autosave is a no-op until the user picks one via
+the "Save to…" button/dialog (device or Drive) or Ctrl/Cmd+S, since a
+browser file picker can only ever open from a direct click, not a
+background timer.
+
+## Debug log
+
+`edit/index.html`'s `#debug-log` (a fixed, always-in-DOM panel mirroring
+`console.log`) is hidden by default — add `?debug=1` to the URL to show it.
+Kept intentionally for diagnosing reports from a phone, where there's no
+real console access.
+
 ## What's built vs. not
 
-Built: landing page, sign-in, Picker-based Open, New-file (deferred
-creation — nothing written to Drive until the first real save), the Drive
-UI integration hand-off parsing (`?state=`) for both "open" and "create"
-actions, debounced autosave, file-type gating (declines native Google
-Docs/Sheets/Slides with a clear message — this is a plain text editor, not
-a format-converting one).
+Built: landing page, account-free local New/Open/Save (File System Access
+API, see above), Drive sign-in (contextual, not forced), Picker-based
+Drive Open, Drive New-file (deferred creation — nothing written until the
+first real save), the Drive UI integration hand-off parsing (`?state=`)
+for both "open" and "create" actions, debounced autosave, file-type
+gating (declines native Google Docs/Sheets/Slides with a clear message —
+this is a plain text editor, not a format-converting one).
 
 Not built: no conflict handling (last-write-wins, deliberately — see the
-planning notes), no rename-collision handling on create (Drive allows
-duplicate file names; unlike the Android app's `uniqueFileFor`, this
-doesn't try to dedupe), no code-editor features (syntax highlighting, line
-numbers) — deliberately out of scope, this is a plain text editor.
+planning notes), no rename-collision handling on Drive create (Drive
+allows duplicate file names; unlike the Android app's `uniqueFileFor`,
+this doesn't try to dedupe), no code-editor features (syntax highlighting,
+line numbers) — deliberately out of scope, this is a plain text editor. No
+persistence of a local file handle across a reload (an unsaved local draft
+is lost on refresh, same as an unsaved Notepad buffer).

@@ -8,21 +8,33 @@ const AUTOSAVE_DEBOUNCE_MS = 1000;
 const APP_FOLDER_NAME = "QuietPad";
 const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
-// TEMPORARY: a live, always-visible event log (see index.html's #debug-log,
-// deliberately outside the .screen divs so it survives regardless of which
-// screen is actually showing). Remove once the "There was an error!" report
-// is understood -- this exists because console.log is unreachable when
-// debugging happens on a phone, and the previous debug line (inside
-// #editor-screen only) was invisible for exactly the cases that most needed
-// explaining: never actually reaching that screen at all.
+// Local-device open/save uses the File System Access API (real read/write
+// file handles, so "Save" overwrites the original file in place). Chromium
+// only as of writing -- Firefox/Safari fall back to a plain <input
+// type=file> for opening and a one-shot download for saving, see
+// openFromDevice / setTargetDevice below.
+const FS_ACCESS_SUPPORTED = "showOpenFilePicker" in window;
+const TEXT_FILE_TYPES = [{
+  description: "Text files",
+  accept: { "text/plain": [".txt", ".md", ".markdown", ".text"] }
+}];
+
+// A live, always-visible event log (see index.html's #debug-log, deliberately
+// outside the .screen divs so it survives regardless of which screen is
+// showing). Hidden unless ?debug=1 is in the URL -- console.log alone is
+// unreachable when debugging a report from someone's phone, so this is kept
+// intentionally for that case rather than removed.
+const DEBUG_MODE = new URLSearchParams(window.location.search).has("debug");
 function debugLog(msg) {
+  console.log(msg);
+  if (!DEBUG_MODE) return;
   const el = document.getElementById("debug-log");
   if (el) {
+    el.hidden = false;
     const t = new Date().toISOString().slice(11, 23);
     el.textContent += `[${t}] ${msg}\n`;
     el.scrollTop = el.scrollHeight;
   }
-  console.log(msg);
 }
 
 /** Google's own format for a Drive UI integration hand-off (the "Open with"
@@ -66,8 +78,7 @@ function updateUrlState(fileId) {
 const REMEMBERED_FILE_KEY = "quietpad-last-open-file-id";
 
 const screens = {
-  signin: document.getElementById("signin-screen"),
-  picker: document.getElementById("picker-screen"),
+  start: document.getElementById("start-screen"),
   editor: document.getElementById("editor-screen"),
   error: document.getElementById("error-screen")
 };
@@ -87,6 +98,12 @@ function showError(message) {
 let accessToken = null;
 let tokenClient = null;
 
+// Set right before requesting a token from a *contextual* sign-in (the user
+// clicked "Open from Google Drive" or chose "Google Drive" in the save-target
+// dialog while signed out) — tells the token callback what to resume once
+// auth succeeds, instead of running the startup-only onSignedIn() logic.
+let pendingAuthAction = null;
+
 /** Fires once Google's own identity script has actually loaded — the plain
  *  <script defer> tag alone doesn't guarantee `google` exists yet by the
  *  time this file starts running. */
@@ -102,27 +119,37 @@ function initAuthWhenReady() {
     callback: (response) => {
       if (response.error) {
         debugLog("Auth failed: " + JSON.stringify(response));
+        pendingAuthAction = null;
         return;
       }
       debugLog("Auth succeeded, got access token");
       accessToken = response.access_token;
-      onSignedIn();
+      const action = pendingAuthAction;
+      pendingAuthAction = null;
+      if (action === "open-drive") {
+        openPicker();
+      } else if (action === "save-drive") {
+        setTarget({ type: "drive", fileId: null, folderId: null });
+        save();
+      } else {
+        onSignedIn();
+      }
     }
   });
-  document.getElementById("signin-button").addEventListener("click", () => {
-    debugLog("Sign in button clicked");
-    tokenClient.requestAccessToken({ prompt: "consent" });
-  });
-  // A Drive hand-off already implies the user is a real Google account
-  // holder currently inside Drive — try a silent (no-prompt) token first so
-  // opening a file via "Open with" doesn't force a visible sign-in click
-  // when a session already exists.
+  // A Drive hand-off (or a remembered previously-open Drive file) already
+  // implies the user is a real Google account holder — try a silent
+  // (no-prompt) token first so reopening doesn't force a visible sign-in
+  // click when a session already exists. A plain visit with neither gets no
+  // sign-in prompt at all: the start screen is a usable, account-free text
+  // editor on its own (New file / Open from this device), and Drive is only
+  // ever one contextual click away, never forced up front.
   const state = parseDriveState();
   if (state || sessionStorage.getItem(REMEMBERED_FILE_KEY)) {
     debugLog("Drive state or remembered file present on load: " + JSON.stringify(state));
     tokenClient.requestAccessToken({ prompt: "" });
   } else {
-    debugLog("No Drive state on load (plain visit)");
+    debugLog("No Drive state on load (plain visit) — showing start screen");
+    showScreen("start");
   }
 }
 
@@ -137,8 +164,18 @@ function onSignedIn() {
   } else if (rememberedFileId) {
     openFile(rememberedFileId);
   } else {
-    showScreen("picker");
+    showScreen("start");
   }
+}
+
+function openFromDrive() {
+  debugLog("Open from Google Drive clicked, signed in=" + Boolean(accessToken));
+  if (!accessToken) {
+    pendingAuthAction = "open-drive";
+    tokenClient.requestAccessToken({ prompt: "consent" });
+    return;
+  }
+  openPicker();
 }
 
 // --- Picker (Notepad-style "File > Open") ------------------------------
@@ -183,10 +220,102 @@ function openPicker() {
   });
 }
 
-document.getElementById("open-button").addEventListener("click", openPicker);
-document.getElementById("new-button").addEventListener("click", () => {
-  debugLog("New file button clicked");
-  startNewFile(null);
+document.getElementById("open-drive-button").addEventListener("click", openFromDrive);
+document.getElementById("new-button").addEventListener("click", startBlankDraft);
+document.getElementById("open-device-button").addEventListener("click", openFromDevice);
+
+// --- Local device files (open/save anywhere on disk, no Google account) ---
+
+const deviceFileInput = document.getElementById("device-file-input");
+
+async function openFromDevice() {
+  debugLog("Open from this device clicked, FS_ACCESS_SUPPORTED=" + FS_ACCESS_SUPPORTED);
+  if (!FS_ACCESS_SUPPORTED) {
+    deviceFileInput.click();
+    return;
+  }
+  let handle;
+  try {
+    [handle] = await window.showOpenFilePicker({ types: TEXT_FILE_TYPES });
+  } catch (e) {
+    if (e.name !== "AbortError") debugLog("showOpenFilePicker failed: " + e.message);
+    return;
+  }
+  const file = await handle.getFile();
+  const text = await file.text();
+  debugLog(`Opened local file ${file.name}, ${text.length} chars`);
+  loadEditor({ type: "device", handle }, file.name, text);
+}
+
+// Fallback for browsers without the File System Access API: can read a
+// picked file via FileReader, but there's no writable handle to save back
+// to, so the loaded file has no target yet (see save()'s device fallback).
+deviceFileInput.addEventListener("change", async () => {
+  const file = deviceFileInput.files[0];
+  deviceFileInput.value = "";
+  if (!file) return;
+  const text = await file.text();
+  debugLog(`Opened local file (fallback input) ${file.name}, ${text.length} chars`);
+  loadEditor(null, file.name, text);
+});
+
+function downloadAsFile(name, content) {
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+  setSaveStatus("Downloaded");
+}
+
+// --- Choosing where a new/unsaved file gets saved -------------------------
+
+const saveTargetDialog = document.getElementById("save-target-dialog");
+const chooseTargetButton = document.getElementById("choose-target-button");
+
+chooseTargetButton.addEventListener("click", () => saveTargetDialog.showModal());
+document.getElementById("save-target-cancel").addEventListener("click", () => saveTargetDialog.close());
+
+document.getElementById("save-target-device").addEventListener("click", async () => {
+  saveTargetDialog.close();
+  if (!FS_ACCESS_SUPPORTED) {
+    // No writable-handle API here -- a one-shot download is the closest
+    // equivalent. Target stays unset so future edits keep offering this
+    // chooser rather than silently downloading a new copy on every keystroke.
+    downloadAsFile(filenameInput.value.trim() || "Untitled.txt", contentArea.value);
+    return;
+  }
+  let handle;
+  try {
+    handle = await window.showSaveFilePicker({
+      suggestedName: filenameInput.value.trim() || "Untitled.txt",
+      types: TEXT_FILE_TYPES
+    });
+  } catch (e) {
+    if (e.name !== "AbortError") debugLog("showSaveFilePicker failed: " + e.message);
+    return;
+  }
+  filenameInput.value = handle.name;
+  // Renaming a file with a live write handle would mean creating a whole new
+  // file (Save As again), which this doesn't support -- lock the name field
+  // rather than let an edit here silently do nothing.
+  filenameInput.readOnly = true;
+  setTarget({ type: "device", handle });
+  save();
+});
+
+document.getElementById("save-target-drive").addEventListener("click", () => {
+  saveTargetDialog.close();
+  debugLog("Save to Google Drive chosen, signed in=" + Boolean(accessToken));
+  if (!accessToken) {
+    pendingAuthAction = "save-drive";
+    tokenClient.requestAccessToken({ prompt: "consent" });
+    return;
+  }
+  setTarget({ type: "drive", fileId: null, folderId: null });
+  save();
 });
 
 // --- Loading a file ------------------------------------------------------
@@ -209,7 +338,7 @@ async function openFile(fileId) {
     const contentResponse = await driveFetch(`/drive/v3/files/${fileId}?alt=media`, { raw: true });
     const text = await contentResponse.text();
     debugLog(`Content fetched, ${text.length} chars`);
-    loadEditor(fileId, meta.name, text);
+    loadEditor({ type: "drive", fileId, folderId: null }, meta.name, text);
     updateUrlState(fileId);
   } catch (e) {
     debugLog("openFile failed: " + (e && e.message ? e.message : e));
@@ -248,6 +377,9 @@ async function findOrCreateAppFolder() {
   return created.id;
 }
 
+// Only reached via a real Drive "New" hand-off (state.action === "create"),
+// so the target is Drive from the start -- the user explicitly invoked this
+// from inside Drive's own UI, already signed in by the time this runs.
 async function startNewFile(folderId) {
   debugLog("startNewFile called, folderId=" + folderId);
   let targetFolderId = folderId;
@@ -263,13 +395,26 @@ async function startNewFile(folderId) {
   // Deferred creation, same reasoning as the Android app's own lazy note
   // creation: nothing is actually written to Drive until there's real
   // content to save, so abandoning a blank "New file" leaves nothing behind.
-  loadEditor(null, "Untitled.txt", "", targetFolderId);
+  loadEditor({ type: "drive", fileId: null, folderId: targetFolderId }, "Untitled.txt", "");
+}
+
+// The start screen's own "New file" button -- no target at all yet (not
+// Drive, not device). Autosave is a no-op until the user picks one via the
+// save-target dialog (see chooseTargetButton), same as a blank Notepad
+// buffer not writing anywhere until the first real Save.
+function startBlankDraft() {
+  debugLog("New file button clicked (blank draft, no target yet)");
+  loadEditor(null, "Untitled.txt", "");
 }
 
 // --- Editor ---------------------------------------------------------------
 
-let currentFileId = null;
-let currentFolderId = null;
+// null | { type: "drive", fileId, folderId } | { type: "device", handle }
+// -- where the currently-open file will be saved. null means "not decided
+// yet" (a blank draft, or a file opened via the no-File-System-Access-API
+// fallback with nothing writable behind it): scheduleAutosave becomes a
+// no-op in that state, and chooseTargetButton is the only way forward.
+let currentTarget = null;
 let currentFileName = "";
 let savedContent = "";
 let saveTimer = null;
@@ -278,14 +423,21 @@ const filenameInput = document.getElementById("filename-input");
 const contentArea = document.getElementById("content-area");
 const saveStatus = document.getElementById("save-status");
 
-function loadEditor(fileId, name, text, folderId) {
-  debugLog(`loadEditor: fileId=${fileId} name=${JSON.stringify(name)} folderId=${folderId} textLen=${text.length}`);
-  currentFileId = fileId;
-  currentFolderId = folderId || null;
+function setTarget(target) {
+  currentTarget = target;
+  chooseTargetButton.hidden = Boolean(target);
+}
+
+function loadEditor(target, name, text) {
+  debugLog(`loadEditor: target=${JSON.stringify(target)} name=${JSON.stringify(name)} textLen=${text.length}`);
+  setTarget(target);
   currentFileName = name;
   savedContent = text;
   filenameInput.value = name;
-  filenameInput.readOnly = false;
+  // Renaming a device file with a live write handle isn't supported (would
+  // mean creating a new file via Save As) -- lock the name field for that
+  // one case rather than let an edit to it silently do nothing.
+  filenameInput.readOnly = Boolean(target && target.type === "device");
   contentArea.value = text;
   // Explicit, defensive: neither should ever be true, since nothing in this
   // file sets them -- but a real report of a selectable-but-uneditable
@@ -294,7 +446,7 @@ function loadEditor(fileId, name, text, folderId) {
   // a claim worth actively enforcing here, not just trusting.
   contentArea.readOnly = false;
   contentArea.disabled = false;
-  setSaveStatus("Saved");
+  setSaveStatus(target ? "Saved" : "Not saved");
   showScreen("editor");
   contentArea.focus();
 }
@@ -305,6 +457,7 @@ function setSaveStatus(text, isError) {
 }
 
 function scheduleAutosave() {
+  if (!currentTarget) { setSaveStatus("Not saved"); return; }
   clearTimeout(saveTimer);
   setSaveStatus("Saving…");
   saveTimer = setTimeout(save, AUTOSAVE_DEBOUNCE_MS);
@@ -321,29 +474,54 @@ window.addEventListener("beforeunload", () => {
 });
 
 async function save() {
+  if (!currentTarget) { setSaveStatus("Not saved"); return; }
   const content = contentArea.value;
   const name = filenameInput.value.trim() || "Untitled.txt";
-  if (content === savedContent && name === currentFileName && currentFileId) {
+  const alreadyExists = currentTarget.type === "device" || Boolean(currentTarget.fileId);
+  if (content === savedContent && name === currentFileName && alreadyExists) {
     setSaveStatus("Saved");
     return;
   }
   try {
-    if (!currentFileId) {
-      currentFileId = await createFile(name, content, currentFolderId);
-      debugLog("Created file: " + currentFileId);
-      updateUrlState(currentFileId);
-    } else {
-      if (name !== currentFileName) await updateMetadata(currentFileId, name);
-      await updateContent(currentFileId, content);
+    if (currentTarget.type === "drive") {
+      if (!currentTarget.fileId) {
+        currentTarget.fileId = await createFile(name, content, currentTarget.folderId);
+        debugLog("Created Drive file: " + currentTarget.fileId);
+        updateUrlState(currentTarget.fileId);
+      } else {
+        if (name !== currentFileName) await updateMetadata(currentTarget.fileId, name);
+        await updateContent(currentTarget.fileId, content);
+      }
+    } else if (currentTarget.type === "device") {
+      const writable = await currentTarget.handle.createWritable();
+      await writable.write(content);
+      await writable.close();
     }
     currentFileName = name;
     savedContent = content;
     setSaveStatus("Saved");
   } catch (e) {
     debugLog("save failed: " + (e && e.message ? e.message : e));
-    setSaveStatus("Couldn't save — check your connection", true);
+    const message = currentTarget.type === "device" ? "Couldn't save to device" : "Couldn't save — check your connection";
+    setSaveStatus(message, true);
   }
 }
+
+// Ctrl/Cmd+S: flush an existing target immediately (skip the debounce), or
+// open the save-target chooser for a still-undecided draft -- the click that
+// opens a native save dialog has to come from a direct user gesture like
+// this key handler, never from the autosave timer.
+document.addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
+  if (screens.editor.hidden) return;
+  e.preventDefault();
+  if (currentTarget) {
+    clearTimeout(saveTimer);
+    save();
+  } else {
+    saveTargetDialog.showModal();
+  }
+});
 
 // --- Drive REST calls -------------------------------------------------
 
