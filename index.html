@@ -3,9 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QuietPad — a plain text editor for your Drive</title>
+<title>QuietPad — Free Online Text Editor for Google Drive</title>
+<meta name="description" content="QuietPad is a free, ad-free online text editor and notepad for the plain text and Markdown files in your Google Drive. Sign in with your own Google account — your files never leave Drive.">
+<link rel="canonical" href="https://quietpad.co.uk/">
+<meta name="theme-color" content="#1a56db">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="QuietPad — Free Online Text Editor for Google Drive">
+<meta property="og:description" content="A free, ad-free online text editor for the files already in your Google Drive. No account of ours, no tracking.">
+<meta property="og:url" content="https://quietpad.co.uk/">
+<meta property="og:image" content="https://quietpad.co.uk/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="QuietPad — Free Online Text Editor for Google Drive">
+<meta name="twitter:description" content="A free, ad-free online text editor for the files already in your Google Drive.">
+<meta name="twitter:image" content="https://quietpad.co.uk/icons/icon-512.png">
+
 <link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css?v=2">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "QuietPad",
+  "url": "https://quietpad.co.uk/",
+  "applicationCategory": "Productivity",
+  "operatingSystem": "Any (web browser)",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "A free, ad-free online text editor and notepad for the plain text and Markdown files in your Google Drive."
+}
+</script>
 </head>
 <body>
   <header class="site-header">
@@ -18,44 +46,71 @@
 
   <main>
     <section class="hero">
-      <h1>A plain text editor for the files already in your Drive.</h1>
+      <h1>A free online text editor for the files already in your Google Drive.</h1>
       <p class="hero-sub">
-        No ads. No tracking. No account of ours — you sign in with your own
-        Google account, and your files never leave Google Drive.
+        A plain, no-frills notepad — no ads, no tracking, no account of ours.
+        Sign in with your own Google account, and your text and Markdown
+        files never leave Google Drive.
       </p>
       <a class="button button-primary button-large" href="edit/">Open the editor</a>
       <p class="hero-hint">
         Or right-click any text file in Google Drive and choose
         &ldquo;Open with QuietPad.&rdquo;
       </p>
+      <p class="hero-trust">Free forever &middot; No sign-up wall &middot; Nothing to install</p>
+    </section>
+
+    <section class="features">
+      <h2 class="section-heading">Why QuietPad</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <span class="feature-mark" aria-hidden="true">&#128683;</span>
+          <h3>No ads, ever</h3>
+          <p>No ad banners, no consent walls, no tracking scripts — just a text box.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-mark" aria-hidden="true">&#128274;</span>
+          <h3>Nothing leaves your Drive</h3>
+          <p>QuietPad has no server of its own. Every file you open or create
+            stays in your own Google Drive, start to finish.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-mark" aria-hidden="true">&#127760;</span>
+          <h3>Works everywhere</h3>
+          <p>Any browser, any device — phone, tablet, or desktop. Nothing to
+            download or install.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-mark" aria-hidden="true">&#128221;</span>
+          <h3>Plain text and Markdown</h3>
+          <p>Opens and saves .txt and .md files right alongside each other —
+            a simple notepad, not a full code editor.</p>
+        </div>
+      </div>
     </section>
 
     <section class="how">
-      <h2>How it works</h2>
-      <ol>
-        <li>Sign in with your Google account.</li>
-        <li>Pick a text file from your Drive, or start a new one.</li>
-        <li>Edit. Changes save straight back to that same file — nothing is
-          copied, converted, or stored anywhere but your own Drive.</li>
+      <h2 class="section-heading">How it works</h2>
+      <ol class="steps">
+        <li>
+          <span class="step-number">1</span>
+          <p>Sign in with your Google account.</p>
+        </li>
+        <li>
+          <span class="step-number">2</span>
+          <p>Pick a text file from your Drive, or start a new one.</p>
+        </li>
+        <li>
+          <span class="step-number">3</span>
+          <p>Edit. Changes save straight back to that same file — nothing is
+            copied, converted, or stored anywhere but your own Drive.</p>
+        </li>
       </ol>
-    </section>
-
-    <section class="products">
-      <h2>Also from us</h2>
-      <div class="product-cards">
-        <a class="product-card" href="#" rel="noopener">
-          <h3>NoNetSearch</h3>
-          <p>Placeholder — replace with the real description and link.</p>
-        </a>
-        <a class="product-card" href="#" rel="noopener">
-          <h3>NoNetDoc</h3>
-          <p>Placeholder — replace with the real description and link.</p>
-        </a>
-      </div>
     </section>
   </main>
 
   <footer class="site-footer">
+    <span class="footer-tagline">QuietPad — a quieter way to write.</span>
     <a href="privacy.html">Privacy</a>
     <a href="terms.html">Terms</a>
   </footer>

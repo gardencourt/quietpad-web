@@ -4,20 +4,29 @@
   --border: #e4e1d8;
   --text: #1f1d18;
   --text-muted: #6b6656;
-  --accent: #8a6d3b;
+  /* Real brand colors, matching the app icon (a legal-pad yellow with blue
+     ruled lines) and the Android app's own theme -- not the placeholder
+     muted brown this used to be. */
+  --accent: #1a56db;
   --accent-contrast: #ffffff;
+  --gold: #fbc02d;
+  --gold-contrast: #2b1f00;
+  --rule-line: rgba(26, 86, 219, 0.14);
   --error: #b3421d;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #17140f;
-    --surface: #211d16;
-    --border: #3a352a;
-    --text: #ece7db;
-    --text-muted: #a89f8b;
-    --accent: #d3ab6e;
-    --accent-contrast: #17140f;
+    --bg: #14161c;
+    --surface: #1a1f2b;
+    --border: #2a3040;
+    --text: #e7e9ee;
+    --text-muted: #a7adba;
+    --accent: #7c9dff;
+    --accent-contrast: #0a1a42;
+    --gold: #f5c94f;
+    --gold-contrast: #2b1f00;
+    --rule-line: rgba(124, 157, 255, 0.18);
     --error: #e0805a;
   }
 }
@@ -40,6 +49,10 @@ a { color: var(--accent); }
   justify-content: space-between;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
 }
 
 .brand {
@@ -61,55 +74,117 @@ a { color: var(--accent); }
   color: var(--text);
   background: var(--surface);
   font-weight: 500;
+  transition: filter 0.15s ease, transform 0.15s ease;
 }
+.button:hover { filter: brightness(0.96); }
+.button:active { transform: translateY(1px); }
 
 .button-primary {
   background: var(--accent);
   color: var(--accent-contrast);
   border-color: var(--accent);
 }
+.button-primary:hover { filter: brightness(1.08); }
 
 .button-large { padding: 12px 28px; font-size: 1.05rem; }
 
 main {
-  max-width: 720px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 48px 24px;
+  padding: 0 24px;
 }
 
-.hero { text-align: center; padding-bottom: 32px; }
-.hero h1 { font-size: 2rem; margin-bottom: 12px; }
-.hero-sub { color: var(--text-muted); max-width: 520px; margin: 0 auto 28px; }
-.hero-hint { color: var(--text-muted); font-size: 0.9rem; margin-top: 16px; }
-
-.how { padding: 32px 0; border-top: 1px solid var(--border); }
-.how ol { color: var(--text-muted); padding-left: 20px; }
-.how li { margin-bottom: 8px; }
-
-.products { padding: 32px 0; border-top: 1px solid var(--border); }
-.product-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+/* Legal-pad ruled lines behind the hero -- the same brand motif as the
+   Android app's note editor, just here as a plain CSS background since
+   there's no dynamic text layout to anchor to. */
+.hero {
+  text-align: center;
+  padding: 56px 24px 40px;
+  margin: 0 -24px 8px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 31px,
+    var(--rule-line) 32px
+  );
 }
-.product-card {
-  display: block;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  text-decoration: none;
-  color: var(--text);
-  background: var(--surface);
-}
-.product-card h3 { margin: 0 0 6px; }
-.product-card p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
-
-.site-footer {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 24px;
-  display: flex;
-  gap: 16px;
+.hero h1 { font-size: 2.1rem; line-height: 1.25; margin-bottom: 14px; }
+.hero-sub { color: var(--text-muted); max-width: 540px; margin: 0 auto 28px; font-size: 1.05rem; }
+.hero-hint { color: var(--text-muted); font-size: 0.9rem; margin-top: 18px; }
+.hero-trust {
   color: var(--text-muted);
   font-size: 0.85rem;
+  margin-top: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
+
+.section-heading {
+  text-align: center;
+  font-size: 1.4rem;
+  margin: 0 0 28px;
+}
+
+.features { padding: 40px 0; border-top: 1px solid var(--border); }
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+.feature-card {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.feature-card .feature-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--gold-contrast);
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+.feature-card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.feature-card p { margin: 0; color: var(--text-muted); font-size: 0.92rem; }
+
+.how { padding: 40px 0; border-top: 1px solid var(--border); }
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.steps li { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.steps p { margin: 0; color: var(--text-muted); }
+
+.site-footer {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+.site-footer .footer-tagline { margin-right: auto; }
