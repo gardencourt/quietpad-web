@@ -1,98 +1,16 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QuietPad Editor</title>
-<link rel="icon" type="image/png" href="../icons/icon-192.png">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="editor.css?v=4">
-</head>
-<body>
-  <!--
-    Screens, exactly one visible at a time (toggled via [hidden] in
-    editor.js — never inline style.display, see that file's own notes):
-      #start-screen   — default landing screen. No Google sign-in required
-                         just to get here — a plain visit is a usable,
-                         account-free text editor. Offers New file, Open
-                         from this device (File System Access API, local
-                         files anywhere on disk — not Drive), and Open from
-                         Google Drive (signs in on demand, only when chosen).
-      #editor-screen  — a file is loaded and editable. Its save target
-                         (device / Drive / not yet chosen) is tracked in
-                         editor.js's currentTarget, independent of how the
-                         file was opened.
-      #error-screen   — loaded, but this file can't be edited here.
-    Sign-in is otherwise only triggered contextually (Drive hand-off from
-    Drive's own UI, a remembered previously-open Drive file, or the user
-    explicitly picking "Google Drive" somewhere) — never forced up front.
-  -->
-
-  <div id="start-screen" class="screen">
-    <div class="centered">
-      <span class="brand-mark" aria-hidden="true">&#128221;</span>
-      <h1>QuietPad</h1>
-      <p class="muted">A plain text editor. Nothing leaves your browser unless you choose to save it somewhere.</p>
-      <div class="button-row">
-        <button id="new-button" class="button button-primary">New file</button>
-        <button id="open-device-button" class="button">Open from this device&hellip;</button>
-        <button id="open-drive-button" class="button">Open from Google Drive&hellip;</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="editor-screen" class="screen" hidden>
-    <div class="editor-topbar">
-      <a href="../" class="icon-button" title="Home" aria-label="Home">&#8592;</a>
-      <input id="filename-input" type="text" class="filename-input" spellcheck="false">
-      <button id="choose-target-button" class="button" type="button" hidden>Save to&hellip;</button>
-      <span id="save-status" class="save-status"></span>
-    </div>
-    <textarea id="content-area" class="content-area" spellcheck="false" placeholder="Start typing&hellip;"></textarea>
-  </div>
-
-  <div id="error-screen" class="screen" hidden>
-    <div class="centered">
-      <span class="brand-mark" aria-hidden="true">&#9888;&#65039;</span>
-      <h1>Can&rsquo;t open this file</h1>
-      <p id="error-message" class="muted"></p>
-      <a href="../" class="button">Back to QuietPad</a>
-    </div>
-  </div>
-
-  <!-- Shown only for a brand-new (never-saved) file, or a local file opened
-       through the no-File-System-Access-API fallback (see editor.js) — both
-       cases where there's no save target yet and one has to be chosen
-       explicitly, since a browser file/save picker can only ever be opened
-       from a direct user click, never from a background autosave timer. -->
-  <dialog id="save-target-dialog">
-    <p>Save this file to:</p>
-    <div class="button-row">
-      <button id="save-target-device" class="button button-primary" type="button">This device</button>
-      <button id="save-target-drive" class="button" type="button">Google Drive</button>
-    </div>
-    <button id="save-target-cancel" class="button" type="button" style="margin-top:12px; width:100%;">Cancel</button>
-  </dialog>
-
-  <!-- Hidden fallback for browsers without the File System Access API
-       (Firefox, Safari — see editor.js's FS_ACCESS_SUPPORTED). Can only
-       read a picked file, never write back to it directly; "Save to this
-       device" for a file opened this way falls back to a plain download. -->
-  <input id="device-file-input" type="file" accept=".txt,.md,.markdown,.text,text/plain" hidden>
-
-  <!-- A live event log, deliberately OUTSIDE the .screen divs above (fixed
-       position, always in the DOM) so it stays visible no matter which
-       screen is showing. Hidden by default — only turned on with ?debug=1
-       in the URL, since console.log alone is unreachable when debugging a
-       report from someone's phone. Kept intentionally (not just a leftover
-       from the "There was an error!" investigation) for the same reason
-       next time. -->
-  <div id="debug-log" hidden style="position:fixed;left:0;right:0;bottom:0;max-height:35vh;overflow-y:auto;background:#000;color:#0f0;font:10px monospace;padding:6px;z-index:9999;white-space:pre-wrap;word-break:break-all;"></div>
-
-  <!-- Google Identity Services (sign-in) and the API client loader (Picker) -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://apis.google.com/js/api.js" async defer></script>
-  <script src="config.js?v=5"></script>
-  <script src="editor.js?v=7"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>QuietPad</title>
+    <meta name="description" content="QuietPad: plain-text notes that live in your own Google Drive. No ads." />
+    <meta name="theme-color" content="#1a56db" />
+    <link rel="icon" href="/icons/icon-192.png" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
