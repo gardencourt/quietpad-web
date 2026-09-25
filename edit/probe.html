@@ -32,9 +32,13 @@
       return r.json();
     }
 
+    // ?client=<oauth client id> tests a different Google Cloud project without redeploying.
+    const CLIENT_ID = new URLSearchParams(location.search).get("client") || QUIETPAD_CONFIG.CLIENT_ID;
+    log("Client ID: " + CLIENT_ID);
+
     let token = null;
     async function run() {
-      out.textContent = "";
+      log("");
       try {
         const folders = await drive("/files?q=" + encodeURIComponent(
           "name = 'QuietPad' and mimeType = 'application/vnd.google-apps.folder' and trashed = false") +
@@ -59,7 +63,7 @@
     document.getElementById("go").addEventListener("click", () => {
       out.textContent = "Signing in…\n";
       google.accounts.oauth2.initTokenClient({
-        client_id: QUIETPAD_CONFIG.CLIENT_ID,
+        client_id: CLIENT_ID,
         scope: QUIETPAD_CONFIG.SCOPE,
         callback: (resp) => {
           if (resp.error) { log("Sign-in failed: " + resp.error); return; }
