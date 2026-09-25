@@ -64,13 +64,15 @@
       out.textContent = "Signing in…\n";
       google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
+        hint: new URLSearchParams(location.search).get("hint") || undefined,
         scope: QUIETPAD_CONFIG.SCOPE,
         callback: (resp) => {
-          if (resp.error) { log("Sign-in failed: " + resp.error); return; }
+          if (resp.error) { log("Sign-in failed: " + resp.error + " " + (resp.error_description || "")); return; }
           token = resp.access_token;
           run();
         }
-      }).requestAccessToken({ prompt: "consent" });
+        error_callback: (e) => log("Sign-in popup problem: " + (e && e.type ? e.type : JSON.stringify(e))),
+      }).requestAccessToken({ prompt: "select_account consent" });
     });
   </script>
 </body>
