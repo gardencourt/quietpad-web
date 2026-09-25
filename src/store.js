@@ -1,5 +1,5 @@
 import { signal, computed, batch } from "@preact/signals";
-import { splitName, titleOf, isoDay } from "./util.js";
+import { splitName, titleOf, isoDay, isDiaryNote, diaryDateFromName, isLockedDiaryEntry, headerIntact, diaryFileName, diaryHeader } from "./util.js";
 
 // ---- Global state -------------------------------------------------------------------
 
@@ -11,6 +11,7 @@ export const activeId = signal(null);
 export const docs = signal({}); // id -> open document state (see loadDoc)
 export const query = signal("");
 export const texts = signal({}); // id -> { modified, text }: cached bodies for search + snippets
+export const view = signal("notes"); // "notes" or "diary": diary entries never appear in the notes view
 export const mobileView = signal("list"); // narrow screens show either the list or the editor
 export const toast = signal(null);
 
@@ -43,9 +44,16 @@ const sortNotes = (list) =>
 /** Notes to show in the sidebar: everything (pinned first, newest first) or, with a query,
  *  those matching every word (or #tag), ranked title-first. */
 export const visibleNotes = computed(() => {
-  const list = notes.value;
+  const wantDiary = view.value === "diary";
+  const cache0 = texts.value;
+  const list = notes.value.filter((n) => isDiaryNote(n.name, cache0[n.id]?.text) === wantDiary);
   const q = query.value.trim().toLowerCase();
-  if (!q) return sortNotes(list);
+  if (!q) {
+    // Diary entries read newest date first (the date is in the name); notes: pinned, then newest edit.
+    return wantDiary
+      ? [...list].sort((a, b) => (diaryDateFromName(b.name)?.getTime() ?? b.modified) - (diaryDateFromName(a.name)?.getTime() ?? a.modified))
+      : sortNotes(list);
+  }
   const words = q.split(/\s+/).filter(Boolean);
   const cache = texts.value;
   const scored = [];
@@ -308,11 +316,36 @@ export function newNote() {
   return id;
 }
 
+/** Returns false when the edit was refused (it would change a diary entry's locked first line). */
 export function editText(id, text) {
   const d = docs.value[id];
-  if (!d) return;
+  if (!d) return true;
+  if (isLockedDiaryEntry(d.name, d.text) && !headerIntact(d.text, text)) {
+    showToast("A diary entry's first line can't be edited.");
+    return false;
+  }
   patchDoc(id, { text, saveState: d.saveState === "conflict" ? "conflict" : "dirty" });
   if (d.saveState !== "conflict") schedule(id);
+  return true;
+}
+
+/** Creates today's diary entry straight away (it has content: the dated first line). */
+export async function newDiaryEntry() {
+  const be = backend.value;
+  if (!be) return;
+  const now = new Date();
+  const text = diaryHeader(now);
+  try {
+    const created = await be.createNote(diaryFileName(now), text);
+    batch(() => {
+      notes.value = [...notes.value, created];
+      texts.value = { ...texts.value, [created.id]: { modified: created.modified, text } };
+      view.value = "diary";
+    });
+    await openNote(created.id);
+  } catch (e) {
+    showToast(`Couldn't create the entry: ${errorText(e)}`);
+  }
 }
 
 function schedule(id) {

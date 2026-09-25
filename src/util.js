@@ -62,3 +62,54 @@ export function formatDate(ms) {
 export function isoDay(ms = Date.now()) {
   return new Date(ms).toISOString().slice(0, 10);
 }
+
+// ---- Diary (same rules as the Android app) ------------------------------------------------
+// A diary entry is a note whose name is "Diary yyyy-MM-dd HH-mm.md" or which carries a #Diary
+// tag. Diary notes are kept out of the ordinary list and shown only in the Diary view.
+
+const DIARY_NAME = /^Diary (\d{4})-(\d{2})-(\d{2}) (\d{2})-(\d{2})/;
+const DIARY_TAG = /(?:^|\s)#diary(?![\w-])/i;
+const DIARY_HEADER = /^[A-Za-z]+ \d{1,2} [A-Za-z]+ \d{4}, \d{2}:\d{2}/;
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const pad = (n) => String(n).padStart(2, "0");
+
+/** The date in a diary file name, or null. */
+export function diaryDateFromName(name) {
+  const m = DIARY_NAME.exec(name || "");
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+}
+
+export const hasDiaryTag = (text) => DIARY_TAG.test(text || "");
+export const isDiaryNote = (name, text) => !!diaryDateFromName(name) || hasDiaryTag(text);
+
+/** True if this entry's first line (and file name) are locked: made as a diary entry. */
+export const isLockedDiaryEntry = (name, text) => {
+  if (diaryDateFromName(name)) return true;
+  const first = (text || "").split("\n")[0];
+  return hasDiaryTag(first) && DIARY_HEADER.test(first);
+};
+
+export const diaryFileName = (d) => `Diary ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}-${pad(d.getMinutes())}.md`;
+
+/** First line of a new entry: "Friday 25 September 2026, 17:45  #Diary" (the tag ends the line so the app doesn't draw it as a heading). */
+export const diaryHeader = (d) =>
+  `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}  #Diary\n\n`;
+
+/** Tab label for a diary entry: the date only, in the browser's own short order (25/09 or 09/25). */
+export const diaryTabLabel = (name) => {
+  const d = diaryDateFromName(name);
+  return d ? d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit" }) : null;
+};
+
+/** Long label for a diary row in the Diary list. */
+export const diaryRowTitle = (name) => {
+  const d = diaryDateFromName(name);
+  return d ? d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : null;
+};
+
+/** True if [next] still starts with [prev]'s first line unchanged. */
+export function headerIntact(prev, next) {
+  const header = prev.split("\n")[0];
+  return next === header || next.startsWith(header + "\n");
+}

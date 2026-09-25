@@ -4,10 +4,10 @@ import { localFoldersSupported } from "./backends/local.js";
 import { savedFolder, startError, lastMode, enterDrive, driveSignIn, chooseFolder, continueFolder, forgetFolder, switchStorage } from "./session.js";
 import {
   backend, notes, listStatus, tabs, activeId, docs, query, texts, mobileView, toast,
-  visibleNotes, searching, loadNotes, refreshNotes, openNote, activateTab, closeTab, closeAllTabs, newNote,
+  visibleNotes, searching, loadNotes, refreshNotes, openNote, view, newDiaryEntry, activateTab, closeTab, closeAllTabs, newNote,
   editText, retryLoad, retrySave, resolveConflict, renameNote, setPinned, setColor, deleteNote
 } from "./store.js";
-import { NOTE_COLORS, colorFor, titleOf, snippetOf, formatDate, attachmentNames } from "./util.js";
+import { NOTE_COLORS, colorFor, titleOf, snippetOf, formatDate, attachmentNames, diaryTabLabel, diaryRowTitle, diaryDateFromName, isLockedDiaryEntry } from "./util.js";
 
 // ---- Sign in ---------------------------------------------------------------------------
 
@@ -85,8 +85,8 @@ function NoteRow({ n }) {
     <li>
       <button class={`note-row ${active ? "active" : ""} ${open ? "open" : ""}`} style={bg ? { "--row-bg": bg } : undefined} onClick={() => openNote(n.id)}>
         <span class="row-top">
-          <span class="row-title">{n.pinned && <span class="pin" title="Pinned">📌</span>}{titleOf(n.name)}</span>
-          <span class="row-date">{formatDate(n.modified)}</span>
+          <span class="row-title">{n.pinned && <span class="pin" title="Pinned">📌</span>}{diaryRowTitle(n.name) || titleOf(n.name)}</span>
+          <span class="row-date">{diaryDateFromName(n.name) ? diaryDateFromName(n.name).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : formatDate(n.modified)}</span>
         </span>
         {snippet && <span class="row-snippet">{snippet}</span>}
       </button>
@@ -106,7 +106,11 @@ export function Sidebar() {
       <div class="side-tools">
         <input type="search" class="search" placeholder="Search notes" aria-label="Search notes" value={query.value} onInput={(e) => (query.value = e.currentTarget.value)} />
         <button class="ghost refresh" onClick={() => refreshNotes({ force: true })} title="Refresh the list" aria-label="Refresh notes">↻</button>
-        <button class="primary" onClick={() => newNote()}>+ New</button>
+        <button class="primary" onClick={() => (view.value === "diary" ? newDiaryEntry() : newNote())}>{view.value === "diary" ? "+ Entry" : "+ New"}</button>
+      </div>
+      <div class="seg" role="tablist" aria-label="Notes or Diary">
+        <button role="tab" aria-selected={view.value === "notes"} class={view.value === "notes" ? "on" : ""} onClick={() => (view.value = "notes")}>Notes</button>
+        <button role="tab" aria-selected={view.value === "diary"} class={view.value === "diary" ? "on" : ""} onClick={() => (view.value = "diary")}>Diary</button>
       </div>
       {st.error && (
         <div class="notice error" role="alert">
@@ -137,7 +141,7 @@ export function TabBar() {
         const dirty = d && (d.saveState === "dirty" || d.saveState === "saving");
         return (
           <div key={id} role="tab" aria-selected={active} class={`tab ${active ? "active" : ""}`} style={{ "--tab-bg": color || "var(--bg)" }} onClick={() => activateTab(id)} title={d?.name}>
-            <span class="tab-title">{titleOf(d?.name || notes.value.find((n) => n.id === id)?.name)}</span>
+            <span class="tab-title">{diaryTabLabel(d?.name || notes.value.find((n) => n.id === id)?.name) || titleOf(d?.name || notes.value.find((n) => n.id === id)?.name)}</span>
             {dirty && <span class="dot" title="Saving…" />}
             <button class="tab-close" aria-label="Close tab" onClick={(e) => { e.stopPropagation(); closeTab(id); }}>✕</button>
           </div>
@@ -200,7 +204,7 @@ function TitleField({ d }) {
   useEffect(() => { if (!focused.current) setValue(titleOf(d.name)); }, [d.name, d.id]);
   const commit = () => { focused.current = false; if (value.trim() && value.trim() !== titleOf(d.name)) renameNote(d.id, value); else setValue(titleOf(d.name)); };
   return (
-    <input class="title" value={value} aria-label="Note title" onFocus={() => (focused.current = true)} onInput={(e) => setValue(e.currentTarget.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+    <input class="title" value={value} readOnly={!!diaryDateFromName(d.name)} aria-label="Note title" onFocus={() => (focused.current = true)} onInput={(e) => setValue(e.currentTarget.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
   );
 }
 
@@ -294,7 +298,7 @@ export function Editor() {
       <Toolbar key={id} d={d} />
       <Banners d={d} />
       <Attachments key={`a-${id}`} text={d.text} />
-      <textarea ref={areaRef} class="body" spellcheck="true" aria-label="Note text" placeholder="Start writing…" value={d.text} onInput={(e) => editText(id, e.currentTarget.value)} />
+      <textarea ref={areaRef} class="body" spellcheck="true" aria-label="Note text" placeholder="Start writing…" value={d.text} onInput={(e) => { if (!editText(id, e.currentTarget.value)) e.currentTarget.value = docs.value[id].text; }} />
     </section>
   );
 }

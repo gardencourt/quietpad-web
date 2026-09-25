@@ -16,6 +16,8 @@ export function createDemoBackend() {
   add("New note (14).md", "Video attached\n[Video 2026-09-24 14-16-02.mp4](./Video 2026-09-24 14-16-02.mp4)", 6 * day);
   add("Recipe - pancakes.md", "Flour, milk, eggs. Rest the batter 20 minutes. #food", 20 * day, { color: "orange" });
   add("आज आपका", "यह एक हिंदी नोट है", 30 * day);
+  add("Diary 2026-09-25 17-45.md", "Friday 25 September 2026, 17:45  #Diary\n\nWent to the market.", 1 * day);
+  add("Diary 2026-09-11 09-30.md", "Friday 11 September 2026, 09:30  #Diary\n\nSlow morning.", 14 * day);
   const svg = (label) =>
     `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180"><rect width="240" height="180" fill="#dce2ff"/><text x="120" y="95" font-size="16" text-anchor="middle" fill="#1a56db">${label}</text></svg>`)}`;
   const delay = (v) => new Promise((r) => setTimeout(() => r(v), 120));
