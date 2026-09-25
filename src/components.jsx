@@ -1,28 +1,50 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { auth, signIn, signOut, needsReconnect, reconnect } from "./auth.js";
+import { auth, signOut, needsReconnect, reconnect } from "./auth.js";
+import { localFoldersSupported } from "./backends/local.js";
+import { savedFolder, startError, lastMode, enterDrive, driveSignIn, chooseFolder, continueFolder, forgetFolder, switchStorage } from "./session.js";
 import {
   backend, notes, listStatus, tabs, activeId, docs, query, texts, mobileView, toast,
-  visibleNotes, searching, loadNotes, openNote, activateTab, closeTab, closeAllTabs, newNote,
+  visibleNotes, searching, loadNotes, refreshNotes, openNote, activateTab, closeTab, closeAllTabs, newNote,
   editText, retryLoad, retrySave, resolveConflict, renameNote, setPinned, setColor, deleteNote
 } from "./store.js";
 import { NOTE_COLORS, colorFor, titleOf, snippetOf, formatDate, attachmentNames } from "./util.js";
 
 // ---- Sign in ---------------------------------------------------------------------------
 
-export function SignIn({ onSignedIn }) {
+export function Start() {
   const a = auth.value;
   const busy = a.status === "signingIn";
+  const folder = savedFolder.value;
+  const err = a.error || startError.value;
+  const localFirst = lastMode() === "local";
+  const driveBtn =
+    a.status === "signedIn" ? (
+      <button class={localFirst ? "secondary" : "primary big"} onClick={enterDrive}>Continue with Google Drive{a.email ? ` (${a.email})` : ""}</button>
+    ) : (
+      <button class={localFirst ? "secondary" : "primary big"} disabled={busy} onClick={driveSignIn}>{busy ? "Signing in…" : "Sign in with Google Drive"}</button>
+    );
+  const localBtns = localFoldersSupported() ? (
+    <>
+      {folder && <button class={localFirst ? "primary big" : "secondary"} onClick={continueFolder}>Continue with folder “{folder.name}”</button>}
+      <button class="secondary" onClick={chooseFolder}>{folder ? "Choose a different folder" : "Open a folder on this computer"}</button>
+    </>
+  ) : null;
   return (
     <div class="signin">
       <div class="signin-card">
         <img src="/icons/icon-192.png" alt="" width="72" height="72" />
         <h1>QuietPad</h1>
-        <p class="muted">Plain-text notes that live in your own Google Drive. The same notes as on your phone, no ads, nothing to install.</p>
-        <button class="primary big" disabled={busy} onClick={async () => { await signIn(); if (auth.value.status === "signedIn") onSignedIn(); }}>
-          {busy ? "Signing in…" : "Sign in with Google"}
-        </button>
-        {a.error && <p class="error" role="alert">{a.error}</p>}
-        <p class="fine">QuietPad only ever sees the files it created in your Drive, never the rest of it.</p>
+        <p class="muted">Plain-text notes you own. Keep them in your Google Drive, or in any folder on this computer, and open the same notes on your phone. No ads.</p>
+        <div class="choices">
+          {localFirst ? localBtns : driveBtn}
+          {localFirst ? driveBtn : localBtns}
+        </div>
+        {err && <p class="error" role="alert">{err}</p>}
+        <p class="fine">
+          {localFoldersSupported()
+            ? "A folder works with Drive for desktop, Dropbox, OneDrive and other apps that keep it in sync. With Google Drive, QuietPad only ever sees the files it created."
+            : "Working from a folder on your computer needs Chrome or Edge. With Google Drive, QuietPad only ever sees the files it created."}
+        </p>
       </div>
     </div>
   );
@@ -33,16 +55,21 @@ export function SignIn({ onSignedIn }) {
 function AccountMenu() {
   const [open, setOpen] = useState(false);
   const a = auth.value;
+  const be = backend.value;
+  const isDrive = be?.kind === "drive";
+  const isLocal = be?.kind === "local";
   return (
     <div class="account">
-      <button class="ghost" onClick={() => setOpen(!open)} aria-expanded={open} title={a.email || "Account"}>
-        {(a.email || "?")[0].toUpperCase()}
+      <button class="ghost" onClick={() => setOpen(!open)} aria-expanded={open} title={isLocal ? be.label : a.email || "Account"}>
+        {isLocal ? "📁" : (a.email || "?")[0].toUpperCase()}
       </button>
       {open && (
         <div class="popover account-pop" onClick={() => setOpen(false)}>
-          <div class="muted small">{a.email || "Signed in"}</div>
-          <div class="muted small">{backend.value?.label}</div>
-          <button class="link" onClick={async () => { await closeAllTabs(); signOut(); location.reload(); }}>Sign out</button>
+          <div class="muted small">{be?.label}</div>
+          {isDrive && a.email && <div class="muted small">{a.email}</div>}
+          <button class="link" onClick={switchStorage}>Switch storage…</button>
+          {isDrive && <button class="link" onClick={async () => { await switchStorage(); signOut(); location.reload(); }}>Sign out of Google</button>}
+          {isLocal && <button class="link" onClick={forgetFolder}>Forget this folder</button>}
         </div>
       )}
     </div>
@@ -78,6 +105,7 @@ export function Sidebar() {
       </header>
       <div class="side-tools">
         <input type="search" class="search" placeholder="Search notes" aria-label="Search notes" value={query.value} onInput={(e) => (query.value = e.currentTarget.value)} />
+        <button class="ghost refresh" onClick={() => refreshNotes({ force: true })} title="Refresh the list" aria-label="Refresh notes">↻</button>
         <button class="primary" onClick={() => newNote()}>+ New</button>
       </div>
       {st.error && (

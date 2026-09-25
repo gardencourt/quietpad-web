@@ -64,6 +64,12 @@ button.ghost.danger:hover { color: var(--error); }
 button.link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; }
 button.danger-solid { background: var(--error); color: #fff; border: 0; border-radius: 8px; padding: 3px 10px; margin-left: 8px; }
 
+button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; }
+button.secondary:hover { background: var(--hover); }
+button.ghost.refresh { font-size: 1.1rem; padding: 2px 8px; }
+.choices { display: grid; gap: 10px; margin-top: 8px; }
+.choices button.big { padding: 12px 22px; font-size: 1.05rem; }
+
 /* ---- Sign-in ---- */
 .signin, .splash { min-height: 100%; display: grid; place-items: center; padding: 24px; }
 .signin-card { max-width: 380px; text-align: center; }

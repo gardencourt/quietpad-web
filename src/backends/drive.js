@@ -89,6 +89,7 @@ export function createDriveBackend() {
   return {
     kind: "drive",
     label: "Google Drive",
+    trashedMessage: "Note moved to your Drive bin.",
 
     async listNotes() {
       const folder = await ensureAppFolder({ create: false });
@@ -152,7 +153,7 @@ export function createDriveBackend() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name })
       });
-      return Date.parse(res.modifiedTime);
+      return { id, modified: Date.parse(res.modifiedTime) };
     },
 
     /** Trashed, not permanently deleted — recoverable from Drive's own bin. */

@@ -24,6 +24,7 @@ export function createDemoBackend() {
   return {
     kind: "demo",
     label: "Demo notes",
+    trashedMessage: "Note deleted.",
     listNotes: () => delay([...files.values()].map(meta)),
     readNote: (id) => delay({ ...files.get(id) }),
     getModified: (id) => delay(files.get(id).modified),
@@ -43,7 +44,7 @@ export function createDemoBackend() {
       const f = files.get(id);
       f.name = name;
       f.modified = Date.now();
-      return delay(f.modified);
+      return delay({ id, modified: f.modified });
     },
     trashNote: (id) => delay(files.delete(id)),
     async setProps(id, { pinned, color }) {

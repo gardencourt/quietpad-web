@@ -15,7 +15,7 @@ export const mobileView = signal("list"); // narrow screens show either the list
 export const toast = signal(null);
 
 const SAVE_DEBOUNCE_MS = 1200;
-const TABS_KEY = "quietpad-web-tabs";
+const tabsKey = () => `quietpad-web-tabs:${backend.value?.kind ?? "none"}`;
 const saveTimers = new Map();
 
 const patchDoc = (id, patch) => {
@@ -134,11 +134,53 @@ export function clearBackend() {
   });
 }
 
+let lastRefresh = 0;
+
+/** Re-read the note list (e.g. when you come back to this tab after editing on your phone, or
+ *  after a sync tool updated the folder), and reload any open note that changed underneath us
+ *  and has no unsaved edits. A note you are mid-edit on is left alone; the conflict check at
+ *  save time deals with that case. */
+export async function refreshNotes({ force = false } = {}) {
+  const be = backend.value;
+  if (!be || listStatus.value.loading) return;
+  if (!force && Date.now() - lastRefresh < 20000) return;
+  lastRefresh = Date.now();
+  try {
+    const list = await be.listNotes();
+    notes.value = list;
+    prefetchTexts();
+    for (const n of list) {
+      const d = docs.value[n.id];
+      if (d && d.status === "ready" && !d.draft && d.saveState === "saved" && d.loadedModified !== n.modified) loadDoc(n.id);
+    }
+  } catch {
+    /* a failed background refresh is not worth interrupting anyone for */
+  }
+}
+
+/** Storages whose note id is the file name (a local folder) get a new id when renamed. */
+function remapId(oldId, newId) {
+  const { [oldId]: oldDoc, ...restDocs } = docs.value;
+  const { [oldId]: oldText, ...restTexts } = texts.value;
+  batch(() => {
+    docs.value = oldDoc ? { ...restDocs, [newId]: { ...oldDoc, id: newId } } : restDocs;
+    texts.value = oldText ? { ...restTexts, [newId]: oldText } : restTexts;
+    tabs.value = tabs.value.map((t) => (t === oldId ? newId : t));
+    if (activeId.value === oldId) activeId.value = newId;
+    notes.value = notes.value.map((n) => (n.id === oldId ? { ...n, id: newId } : n));
+  });
+  if (saveTimers.has(oldId)) {
+    saveTimers.set(newId, saveTimers.get(oldId));
+    saveTimers.delete(oldId);
+  }
+  persistTabs();
+}
+
 // ---- Tabs ------------------------------------------------------------------------------
 
 function persistTabs() {
   try {
-    localStorage.setItem(TABS_KEY, JSON.stringify({ ids: tabs.value.filter((t) => !t.startsWith("draft-")), active: activeId.value }));
+    localStorage.setItem(tabsKey(), JSON.stringify({ ids: tabs.value.filter((t) => !t.startsWith("draft-")), active: activeId.value }));
   } catch {
     /* storage unavailable (private window): tabs just won't be remembered */
   }
@@ -148,7 +190,7 @@ function persistTabs() {
 export async function restoreTabs() {
   let saved;
   try {
-    saved = JSON.parse(localStorage.getItem(TABS_KEY) || "null");
+    saved = JSON.parse(localStorage.getItem(tabsKey()) || "null");
   } catch {
     saved = null;
   }
@@ -305,7 +347,7 @@ async function saveNow(id) {
       const at = tabs.value.indexOf(id);
       const { [id]: draftDoc, ...rest } = docs.value;
       batch(() => {
-        docs.value = { ...rest, [created.id]: { ...draftDoc, id: created.id, draft: false, loadedModified: created.modified, mime: created.mime, savedText: d.text, saveState: "saved" } };
+        docs.value = { ...rest, [created.id]: { ...draftDoc, id: created.id, draft: false, name: created.name, loadedModified: created.modified, mime: created.mime, savedText: d.text, saveState: "saved" } };
         tabs.value = tabs.value.map((t, i) => (i === at ? created.id : t));
         if (activeId.value === id) activeId.value = created.id;
         notes.value = [...notes.value, { ...created }];
@@ -384,9 +426,10 @@ export async function renameNote(id, title) {
   if (name === d.name) return;
   if (d.draft) return patchDoc(id, { name });
   try {
-    const modified = await backend.value.renameNote(id, name);
-    patchDoc(id, { name, loadedModified: modified });
-    patchMeta(id, { name, modified });
+    const { id: newId, modified } = await backend.value.renameNote(id, name);
+    if (newId !== id) remapId(id, newId);
+    patchDoc(newId, { name, loadedModified: modified });
+    patchMeta(newId, { name, modified });
   } catch (e) {
     showToast(`Couldn't rename: ${errorText(e)}`);
   }
@@ -432,7 +475,7 @@ export async function deleteNote(id) {
     const { [id]: _d, ...rest } = docs.value;
     docs.value = rest;
     await closeTab(id);
-    showToast(d && !d.draft ? "Note moved to your Drive bin." : "Draft discarded.");
+    showToast(d && !d.draft ? backend.value?.trashedMessage || "Note deleted." : "Draft discarded.");
   } catch (e) {
     showToast(`Couldn't delete: ${errorText(e)}`);
   }
@@ -444,6 +487,7 @@ if (typeof window !== "undefined") {
   const flushAll = () => Object.keys(docs.value).forEach((id) => flush(id));
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flushAll();
+    else refreshNotes();
   });
   window.addEventListener("pagehide", flushAll);
   window.addEventListener("beforeunload", (e) => {
