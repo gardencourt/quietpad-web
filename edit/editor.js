@@ -338,7 +338,7 @@ async function openFile(fileId) {
     const contentResponse = await driveFetch(`/drive/v3/files/${fileId}?alt=media`, { raw: true });
     const text = await contentResponse.text();
     debugLog(`Content fetched, ${text.length} chars`);
-    loadEditor({ type: "drive", fileId, folderId: null }, meta.name, text);
+    loadEditor({ type: "drive", fileId, folderId: null, mimeType: meta.mimeType }, meta.name, text);
     updateUrlState(fileId);
   } catch (e) {
     debugLog("openFile failed: " + (e && e.message ? e.message : e));
@@ -490,7 +490,7 @@ async function save() {
         updateUrlState(currentTarget.fileId);
       } else {
         if (name !== currentFileName) await updateMetadata(currentTarget.fileId, name);
-        await updateContent(currentTarget.fileId, content);
+        await updateContent(currentTarget.fileId, content, currentTarget.mimeType);
       }
     } else if (currentTarget.type === "device") {
       const writable = await currentTarget.handle.createWritable();
@@ -540,14 +540,18 @@ async function driveFetch(path, opts = {}) {
   return opts.raw ? response : response.json();
 }
 
-async function updateContent(fileId, content) {
+// Drive takes a media upload's Content-Type as the file's new mimeType, so
+// this must send the file's existing one back — a hardcoded text/plain would
+// silently strip the Android app's custom application/vnd.quietpad.note+markdown
+// tag (and with it the "Open with QuietPad" association) on every web save.
+async function updateContent(fileId, content, mimeType) {
   const response = await fetch(
     `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
     {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "text/plain"
+        "Content-Type": mimeType || "text/plain"
       },
       body: content
     }
