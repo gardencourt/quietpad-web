@@ -70,8 +70,8 @@
           if (resp.error) { log("Sign-in failed: " + resp.error + " " + (resp.error_description || "")); return; }
           token = resp.access_token;
           run();
-        }
-        error_callback: (e) => log("Sign-in popup problem: " + (e && e.type ? e.type : JSON.stringify(e))),
+        },
+        error_callback: (e) => log("Sign-in popup problem: " + (e && e.type ? e.type : JSON.stringify(e)))
       }).requestAccessToken({ prompt: "select_account consent" });
     });
   </script>
