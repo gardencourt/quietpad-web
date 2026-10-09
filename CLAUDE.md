@@ -16,23 +16,33 @@ own token.
 
 ## Read this before doing anything else
 
-**`ANDROID-PARITY-HANDOFF.md`** (repo root) is the actual spec: the full
-Android feature reference to replicate, this web app's current real state
-and known gaps, the Cloud Console setup gotcha, and the pending Cloudflare/
-DNS work. Read it in full before making changes — this file only covers
-how to work here, not what to build.
+**`COMPANION-EDITOR-SPEC.md`** (repo root) is the current spec, decided
+2026-10-09: this project is now scoped down to a **companion editor** (open
+one QuietPad note, edit, save back to the same file — attachments included,
+no note library/search/tabs), not the full standalone notes app `web-app`
+was building toward. Read it first.
+
+**`ANDROID-PARITY-HANDOFF.md`** (repo root) is still useful as the Android
+feature reference (diary date-resolution rules, attachment Drive mechanics,
+branding conventions) — but its own "current direction" framing (continue
+on `web-app`, build toward a full notes app) is superseded by the spec
+above. Don't follow its branch/scope guidance; do use its Android-behavior
+details.
 
 ## Repo/branch state — do not merge to main without checking this first
 
-- **`main`** is what `quietpad.co.uk` actually serves live today (an older,
-  static single-file editor, via GitHub Pages/IONOS DNS).
-- **`web-app`** has all the real, current work (Preact + Vite notes app) —
-  branch off this, not `main`.
-- `web-app` must **not** be merged into `main` until `quietpad.co.uk`'s DNS
-  has actually moved to Cloudflare (see `ANDROID-PARITY-HANDOFF.md`) —
-  merging first would replace the live site with an app the domain can't
-  yet serve correctly. If asked to merge or deploy to production, check
-  this has happened; if you can't tell, ask rather than assume.
+- **Build base is now `main`**, not `web-app`. `main` already has the
+  original single-file Notepad-style editor (Drive hand-off + Picker open,
+  local-device open/save, autosave) — much closer to the companion scope
+  than `web-app`'s sidebar/tabs/library rebuild is.
+- **`web-app`** is not merged and is not the direction going forward — it's
+  a source to cherry-pick specific logic from (markdown rendering, checklist
+  toggle — see `COMPANION-EDITOR-SPEC.md`), not a branch to continue on.
+- `main` is also what `quietpad.co.uk` actually serves live today, via
+  GitHub Pages/IONOS DNS — so building on `main` means working close to the
+  live site; use a feature branch for actual changes rather than committing
+  straight to `main`, and don't deploy/merge anything live-facing without
+  checking with the user first.
 
 ## Working style (carried over from the Android project — same person, same expectations)
 
