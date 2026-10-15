@@ -16,53 +16,74 @@
     <a class="button" href="./">Home</a>
   </header>
   <main>
-    <!--
-      DRAFT — accurate to how the app actually works as of first build, but
-      not reviewed by a lawyer. Read through and adjust before this goes live
-      or gets submitted for OAuth verification / Marketplace listing; Google
-      will check that this page's claims match what the app's OAuth consent
-      screen and requested scopes actually do.
-    -->
     <h1>Privacy Policy</h1>
-    <p><em>Last updated: [DATE]</em></p>
+    <p><em>Last updated: 15 October 2026</em></p>
 
-    <h2>What QuietPad does</h2>
+    <h2>What QuietPad is</h2>
     <p>
-      QuietPad is a plain text editor that runs entirely in your browser.
-      There is no QuietPad server: this page talks directly to Google Drive's
-      own API, using your own Google account, to read and save the file
-      you're editing.
+      QuietPad is a plain-text and Markdown note editor, available as an
+      Android app and as this browser-based companion editor. Neither has a
+      server of its own: both talk directly to Google Drive's own API, using
+      your own Google account, to read and save your files. Signing in with
+      Google is optional in the Android app — skip it, and your notes stay on
+      that device only, never touching Drive or any other service.
     </p>
 
     <h2>What we access</h2>
     <p>
-      QuietPad requests the <code>drive.file</code> Google Drive scope. This
-      scope only grants access to files you explicitly open through QuietPad
-      &mdash; either by picking one from the in-app file picker, or by
-      choosing &ldquo;Open with QuietPad&rdquo; on a file directly in Google
-      Drive. QuietPad cannot see, list, or access any other file in your
-      Drive.
+      QuietPad requests two narrow Google Drive scopes, and nothing broader:
     </p>
+    <ul>
+      <li>
+        <code>drive.file</code> — access only to files you explicitly open
+        through QuietPad: a file you create in the app, one you pick via its
+        in-app file picker, or one you open with &ldquo;Open with
+        QuietPad&rdquo; directly from Google Drive. QuietPad cannot see,
+        list, or access any other file in your Drive.
+      </li>
+      <li>
+        <code>drive.appdata</code> — a hidden, per-app data folder, invisible
+        in your ordinary Drive view, used only by the Android app to record
+        whether this Google account has already used QuietPad's free trial
+        before. It holds a trial start date and nothing else — no note
+        content, no file names, nothing you've written.
+      </li>
+    </ul>
 
     <h2>What we store</h2>
     <p>
-      Nothing, on our side. QuietPad has no database and no server-side
-      storage of any kind. The only place your file content exists is your
-      own Google Drive and, temporarily, your browser's memory while a tab
-      is open.
+      Nothing on a QuietPad server of our own — we don't operate one. In the
+      Android app, your notes, diary entries, and attachments are stored as
+      plain files on your own device, indexed in a local database the app
+      keeps for itself, and optionally synced to your own Google Drive if
+      you've signed in. In this browser editor, a file's content exists only
+      in your own Google Drive and, temporarily, your browser tab's memory
+      while it's open.
+    </p>
+
+    <h2>Other on-device features</h2>
+    <p>
+      The Android app's optional <strong>App Lock</strong> uses your device's
+      own fingerprint/face unlock (Android's BiometricPrompt) to lock the app
+      itself — QuietPad never receives, stores, or sees any biometric data;
+      that stays entirely between you and your device's operating system.
+      <strong>Reminders</strong> are ordinary local notifications scheduled
+      on your device and are never transmitted anywhere. The app's one-time
+      unlock purchase is handled entirely by Google Play Billing — QuietPad
+      never sees your payment details.
     </p>
 
     <h2>Third parties</h2>
     <p>
       QuietPad does not use analytics, advertising, or tracking scripts of
       any kind, and does not share any data with third parties. The only
-      other party involved is Google itself, via its own Drive and
-      sign-in APIs, governed by
+      other parties involved are Google's own Drive, Sign-In, and Play
+      Billing services, each governed by
       <a href="https://policies.google.com/privacy" rel="noopener">Google's own privacy policy</a>.
     </p>
 
     <h2>Contact</h2>
-    <p>[SUPPORT EMAIL ADDRESS]</p>
+    <p><a href="mailto:hello@nonetbox.com">hello@nonetbox.com</a></p>
   </main>
 </body>
 </html>
