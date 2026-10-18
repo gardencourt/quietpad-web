@@ -86,6 +86,17 @@ html, body { height: 100%; }
 }
 .save-status.error { color: var(--error); }
 
+/* Same fix, same reason, as .screen[hidden] and .button[hidden] above:
+   without this, the plain .conflict-banner/.diary-banner display:flex
+   below wins the specificity tie against [hidden]'s UA default, so
+   conflictBanner.hidden/diaryBanner.hidden have NO visual effect at all.
+   Real report, the big one: both banners were showing on EVERY note,
+   permanently, regardless of whether a conflict or a diary entry was
+   ever actually detected -- not a logic bug in editor.js at all, which
+   explains why no console log ever matched what was on screen. Missed
+   this the first time I fixed the identical bug for .button[hidden]. */
+.conflict-banner[hidden], .diary-banner[hidden] { display: none; }
+
 .conflict-banner, .diary-banner {
   display: flex;
   align-items: center;
