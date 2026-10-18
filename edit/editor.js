@@ -303,6 +303,19 @@ let savedContentCanonical = "";
 let originalUsesCRLF = false;
 let saveTimer = null;
 let conflicted = false;
+// Real report: typing continuously (autosaving every ~1s on each pause)
+// produced a false conflict even with the headRevisionId fix above. Cause:
+// hasRemoteChange() does a files.get read right before every save,
+// including ones that land a second or two after OUR OWN previous save —
+// and Drive doesn't guarantee a read immediately after a write reflects
+// that write yet. That race compared against a headRevisionId that hadn't
+// caught up to what we ourselves had just written, not anyone else's edit.
+// Skipping the remote check for a short window after our own last
+// successful write closes this off; a genuinely external change is never
+// going to land in that same ~8s window in practice, and the very next
+// save after it re-enables the real check.
+let lastLocalWriteAt = 0;
+const SKIP_CONFLICT_CHECK_WITHIN_MS = 8000;
 
 const filenameInput = document.getElementById("filename-input");
 const contentArea = document.getElementById("content-area");
@@ -318,6 +331,7 @@ function loadEditor(meta, text, isDiary) {
   savedContentCanonical = normalizeToLF(text);
   conflicted = false;
   conflictBanner.hidden = true;
+  lastLocalWriteAt = 0;
 
   filenameInput.value = meta.name;
   contentArea.value = savedContentCanonical;
@@ -357,6 +371,7 @@ window.addEventListener("beforeunload", () => {
  *  it was when opened. A plain read call (files.get, not a write), run once
  *  right before an actual save rather than on every keystroke. */
 async function hasRemoteChange() {
+  if (Date.now() - lastLocalWriteAt < SKIP_CONFLICT_CHECK_WITHIN_MS) return false;
   const meta = await driveFetch(`/drive/v3/files/${currentFileId}?fields=headRevisionId`);
   return meta.headRevisionId !== openedHeadRevisionId;
 }
@@ -380,6 +395,7 @@ async function save(skipConflictCheck) {
     const meta = await updateContent(currentFileId, upload, currentMimeType);
     savedContentCanonical = content;
     openedHeadRevisionId = meta.headRevisionId;
+    lastLocalWriteAt = Date.now();
     setSaveStatus("Saved");
   } catch (e) {
     debugLog("save failed: " + (e && e.message ? e.message : e));
