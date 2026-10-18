@@ -241,7 +241,7 @@ document.getElementById("open-drive-button").addEventListener("click", openFromD
 async function openFile(fileId) {
   debugLog("openFile called with fileId=" + fileId);
   try {
-    const meta = await driveFetch(`/drive/v3/files/${fileId}?fields=id,name,mimeType,modifiedTime,parents,appProperties`);
+    const meta = await driveFetch(`/drive/v3/files/${fileId}?fields=id,name,mimeType,headRevisionId,parents,appProperties`);
     debugLog("Metadata response: " + JSON.stringify(meta));
 
     // A.2: verify the file's parent really is the QuietPad folder, even for
@@ -285,7 +285,14 @@ async function openFile(fileId) {
 
 let currentFileId = null;
 let currentMimeType = null;
-let openedModifiedTime = null;
+// headRevisionId, not modifiedTime: Drive bumps modifiedTime on ANY
+// metadata patch, including the appProperties-only writes Android's own
+// sync makes constantly (pin/color/labels/archive) — comparing modifiedTime
+// here produced false "changed elsewhere" conflicts on a note nobody had
+// actually edited (real report). headRevisionId only changes when the
+// file's content itself gets a new revision, which is exactly what this
+// check needs to care about.
+let openedHeadRevisionId = null;
 // The textarea's own .value getter normalizes every line break to "\n"
 // regardless of the source's actual bytes (an HTML spec quirk) — so a file
 // that uses CRLF has to have that restored right before every PATCH, or an
@@ -306,7 +313,7 @@ const conflictBanner = document.getElementById("conflict-banner");
 function loadEditor(meta, text, isDiary) {
   currentFileId = meta.id;
   currentMimeType = meta.mimeType;
-  openedModifiedTime = meta.modifiedTime;
+  openedHeadRevisionId = meta.headRevisionId;
   originalUsesCRLF = text.includes("\r\n");
   savedContentCanonical = normalizeToLF(text);
   conflicted = false;
@@ -346,12 +353,12 @@ window.addEventListener("beforeunload", () => {
   if (saveTimer && !conflicted) { clearTimeout(saveTimer); save(); }
 });
 
-/** A.4: before writing, check the file's remote modifiedTime against what
+/** A.4: before writing, check the file's remote headRevisionId against what
  *  it was when opened. A plain read call (files.get, not a write), run once
  *  right before an actual save rather than on every keystroke. */
 async function hasRemoteChange() {
-  const meta = await driveFetch(`/drive/v3/files/${currentFileId}?fields=modifiedTime`);
-  return meta.modifiedTime !== openedModifiedTime;
+  const meta = await driveFetch(`/drive/v3/files/${currentFileId}?fields=headRevisionId`);
+  return meta.headRevisionId !== openedHeadRevisionId;
 }
 
 async function save(skipConflictCheck) {
@@ -372,7 +379,7 @@ async function save(skipConflictCheck) {
     const upload = originalUsesCRLF ? content.replace(/\n/g, "\r\n") : content;
     const meta = await updateContent(currentFileId, upload, currentMimeType);
     savedContentCanonical = content;
-    openedModifiedTime = meta.modifiedTime;
+    openedHeadRevisionId = meta.headRevisionId;
     setSaveStatus("Saved");
   } catch (e) {
     debugLog("save failed: " + (e && e.message ? e.message : e));
@@ -417,12 +424,12 @@ async function driveFetch(path, opts = {}) {
 // takes a media upload's Content-Type as the file's new mimeType, so this
 // must resend the file's existing one — a hardcoded text/plain would
 // silently strip Android's custom NOTE_MIME_TYPE tag (and with it the "Open
-// with QuietPad" association) on every web save. fields=modifiedTime so the
-// conflict check above has a fresh timestamp to compare against next time,
-// with no extra read call.
+// with QuietPad" association) on every web save. fields=headRevisionId so
+// the conflict check above has a fresh baseline to compare against next
+// time, with no extra read call.
 async function updateContent(fileId, content, mimeType) {
   const response = await fetch(
-    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=modifiedTime`,
+    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=headRevisionId`,
     {
       method: "PATCH",
       headers: {
