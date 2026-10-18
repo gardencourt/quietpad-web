@@ -249,7 +249,7 @@ document.getElementById("open-drive-button").addEventListener("click", openFromD
 async function openFile(fileId) {
   debugLog("openFile called with fileId=" + fileId);
   try {
-    const meta = await driveFetch(`/drive/v3/files/${fileId}?fields=id,name,mimeType,headRevisionId,parents,appProperties`);
+    const meta = await driveFetch(`/drive/v3/files/${fileId}?fields=id,name,mimeType,parents,appProperties`);
     debugLog("Metadata response: " + JSON.stringify(meta));
 
     // A.2: verify the file's parent really is the QuietPad folder, even for
@@ -293,35 +293,30 @@ async function openFile(fileId) {
 
 let currentFileId = null;
 let currentMimeType = null;
-// headRevisionId, not modifiedTime: Drive bumps modifiedTime on ANY
-// metadata patch, including the appProperties-only writes Android's own
-// sync makes constantly (pin/color/labels/archive) — comparing modifiedTime
-// here produced false "changed elsewhere" conflicts on a note nobody had
-// actually edited (real report). headRevisionId only changes when the
-// file's content itself gets a new revision, which is exactly what this
-// check needs to care about.
-let openedHeadRevisionId = null;
 // The textarea's own .value getter normalizes every line break to "\n"
 // regardless of the source's actual bytes (an HTML spec quirk) — so a file
 // that uses CRLF has to have that restored right before every PATCH, or an
 // edit would silently rewrite every line ending in the file (A.4: "preserve
 // … line endings"). savedContentCanonical is always in \n form, to compare
-// cleanly against the (always-\n) textarea value.
+// cleanly against the (always-\n) textarea value. It's also the conflict
+// check's baseline (see hasRemoteChange) — "what we believe Drive currently
+// holds for this file," updated on open and after every successful save.
 let savedContentCanonical = "";
 let originalUsesCRLF = false;
 let saveTimer = null;
 let conflicted = false;
-// Real report: typing continuously (autosaving every ~1s on each pause)
-// produced a false conflict even with the headRevisionId fix above. Cause:
-// hasRemoteChange() does a files.get read right before every save,
-// including ones that land a second or two after OUR OWN previous save —
-// and Drive doesn't guarantee a read immediately after a write reflects
-// that write yet. That race compared against a headRevisionId that hadn't
-// caught up to what we ourselves had just written, not anyone else's edit.
-// Skipping the remote check for a short window after our own last
-// successful write closes this off; a genuinely external change is never
-// going to land in that same ~8s window in practice, and the very next
-// save after it re-enables the real check.
+// Tried modifiedTime, then headRevisionId, for the conflict check below —
+// both produced false "changed elsewhere" conflicts that didn't hold up
+// (confirmed live: modifiedTime bumps on Android's metadata-only syncs;
+// headRevisionId mismatched even on the very first save right after
+// opening a file, with nothing else touching it in between — not
+// explainable by the self-write race this constant was originally added
+// for). Given neither opaque field behaved as documented in practice, the
+// conflict check now compares actual downloaded CONTENT instead (see
+// hasRemoteChange) — ground truth, nothing to misinterpret. This window
+// still matters for that: a read immediately after our own write isn't
+// guaranteed to reflect it yet either, so skip re-checking content for a
+// short stretch right after we write it ourselves.
 let lastLocalWriteAt = 0;
 const SKIP_CONFLICT_CHECK_WITHIN_MS = 8000;
 
@@ -334,7 +329,6 @@ const conflictBanner = document.getElementById("conflict-banner");
 function loadEditor(meta, text, isDiary) {
   currentFileId = meta.id;
   currentMimeType = meta.mimeType;
-  openedHeadRevisionId = meta.headRevisionId;
   originalUsesCRLF = text.includes("\r\n");
   savedContentCanonical = normalizeToLF(text);
   conflicted = false;
@@ -375,19 +369,24 @@ window.addEventListener("beforeunload", () => {
   if (saveTimer && !conflicted) { clearTimeout(saveTimer); save(); }
 });
 
-/** A.4: before writing, check the file's remote headRevisionId against what
- *  it was when opened. A plain read call (files.get, not a write), run once
- *  right before an actual save rather than on every keystroke. */
+/** A.4: before writing, check the file's remote CONTENT against what we
+ *  believe Drive currently holds (savedContentCanonical) — not an opaque
+ *  metadata field (see the lastLocalWriteAt comment above for why). A plain
+ *  read call (files.get media, not a write), run once right before an
+ *  actual save rather than on every keystroke. */
 async function hasRemoteChange() {
   const sinceWrite = Date.now() - lastLocalWriteAt;
   if (sinceWrite < SKIP_CONFLICT_CHECK_WITHIN_MS) {
     return { changed: false, reason: `skipped, ${sinceWrite}ms since our own last write` };
   }
-  const meta = await driveFetch(`/drive/v3/files/${currentFileId}?fields=headRevisionId`);
-  const changed = meta.headRevisionId !== openedHeadRevisionId;
+  const response = await driveFetch(`/drive/v3/files/${currentFileId}?alt=media`, { raw: true });
+  const remoteContent = normalizeToLF(await response.text());
+  const changed = remoteContent !== savedContentCanonical;
   return {
     changed,
-    reason: `opened=${openedHeadRevisionId} remote=${meta.headRevisionId} sinceWrite=${sinceWrite}ms`
+    reason: changed
+      ? `remote content differs (local ${savedContentCanonical.length} chars, remote ${remoteContent.length} chars, sinceWrite=${sinceWrite}ms)`
+      : ""
   };
 }
 
@@ -409,9 +408,8 @@ async function save(skipConflictCheck) {
       return;
     }
     const upload = originalUsesCRLF ? content.replace(/\n/g, "\r\n") : content;
-    const meta = await updateContent(currentFileId, upload, currentMimeType);
+    await updateContent(currentFileId, upload, currentMimeType);
     savedContentCanonical = content;
-    openedHeadRevisionId = meta.headRevisionId;
     lastLocalWriteAt = Date.now();
     setSaveStatus("Saved");
   } catch (e) {
@@ -475,12 +473,10 @@ async function driveFetch(path, opts = {}) {
 // takes a media upload's Content-Type as the file's new mimeType, so this
 // must resend the file's existing one — a hardcoded text/plain would
 // silently strip Android's custom NOTE_MIME_TYPE tag (and with it the "Open
-// with QuietPad" association) on every web save. fields=headRevisionId so
-// the conflict check above has a fresh baseline to compare against next
-// time, with no extra read call.
+// with QuietPad" association) on every web save.
 async function updateContent(fileId, content, mimeType) {
   const response = await fetch(
-    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=headRevisionId`,
+    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
     {
       method: "PATCH",
       headers: {
@@ -491,7 +487,6 @@ async function updateContent(fileId, content, mimeType) {
     }
   );
   if (!response.ok) throw new Error(`Drive API ${response.status}`);
-  return response.json();
 }
 
 // Safety net: any uncaught error anywhere on this page surfaces on the error
