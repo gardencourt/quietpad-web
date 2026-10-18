@@ -14,6 +14,19 @@ html, body { height: 100%; }
   padding: 24px;
 }
 
+/* Pre-sign-in screen only (real request: the fuller copy here, below, felt
+   cramped at the shared 360px). error-screen keeps the narrower width --
+   it was never asked to change, and its one short message doesn't need
+   the room. On a phone this has no effect either way: max-width only
+   binds once the viewport is wider than it, so side padding stays the
+   same 24px and nothing here makes a phone layout wider than the screen
+   itself. The wider column also wraps the paragraphs onto fewer lines,
+   which keeps the whole centered block (button included) shorter and
+   further from falling below the fold on a typical desktop window. */
+#start-screen .centered {
+  max-width: 560px;
+}
+
 .centered .brand-mark { font-size: 2.5rem; display: block; margin-bottom: 8px; }
 .centered h1 { margin: 0 0 8px; }
 .muted { color: var(--text-muted); margin-bottom: 24px; }
