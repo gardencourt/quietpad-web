@@ -148,9 +148,17 @@ document.getElementById("sign-out-button").addEventListener("click", signOut);
 
 function signOut() {
   debugLog("Sign out clicked");
-  if (accessToken && google.accounts && google.accounts.oauth2) {
-    google.accounts.oauth2.revoke(accessToken, () => debugLog("Token revoked"));
-  }
+  // NEVER call google.accounts.oauth2.revoke() here (real, serious bug,
+  // confirmed live): Google's revoke endpoint doesn't revoke just the one
+  // token it's given -- it revokes the ENTIRE grant for that (account,
+  // OAuth client) pair, every token anyone ever got from it. This editor
+  // deliberately shares the same OAuth client as the Android app (so
+  // drive.file visibility lines up, see config.js), so revoking here was
+  // invalidating the Android app's own refresh token too, on every device
+  // signed into that account -- breaking its sync with "Token has been
+  // expired or revoked," confirmed via the app's own logcat. "Sign out" on
+  // a single browser tab must only forget this tab's own session, nothing
+  // account-wide.
   accessToken = null;
   currentFileId = null;
   // A different account may sign in next — never carry over the previous
