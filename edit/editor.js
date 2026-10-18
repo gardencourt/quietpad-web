@@ -399,6 +399,24 @@ document.getElementById("conflict-save-anyway-button").addEventListener("click",
   save(/* skipConflictCheck */ true);
 });
 
+// Real request: this used to be a plain <a href="../"> that left the app
+// for the marketing homepage — not what a "back" control should do from
+// inside a single-note editor. Goes back to picking a different note
+// instead, flushing any pending edit first (awaited, not fire-and-forget,
+// so currentFileId below can't go null out from under an in-flight save).
+document.getElementById("back-button").addEventListener("click", async () => {
+  if (saveTimer && !conflicted && !contentArea.readOnly) {
+    clearTimeout(saveTimer);
+    await save();
+  }
+  currentFileId = null;
+  conflicted = false;
+  conflictBanner.hidden = true;
+  sessionStorage.removeItem(REMEMBERED_FILE_KEY);
+  history.replaceState(null, "", window.location.pathname);
+  openFromDrive();
+});
+
 // Ctrl/Cmd+S: flush an existing autosave immediately, skipping the debounce.
 document.addEventListener("keydown", (e) => {
   if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;

@@ -50,6 +50,12 @@ html, body { height: 100%; }
   font-size: 1.2rem;
   padding: 4px 8px;
   border-radius: 6px;
+  /* Now a <button> (was an <a>, see editor.js's back-button) — reset the
+     default button chrome so it still looks like a plain icon link. */
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 .icon-button:hover { background: var(--surface); }
 
