@@ -7,6 +7,13 @@ html, body { height: 100%; }
 .screen[hidden] { display: none; }
 .screen { height: 100vh; display: flex; }
 
+/* Same fix, same reason, for the buttons -- style.css's .button sets its
+   own `display: inline-block`, which beats [hidden]'s UA default the same
+   way .screen's display:flex did above. Real report: "Open a note..."
+   (hidden until a real sign-in resolves a folder, see editor.js's
+   openFromDrive) was visible on the pre-sign-in screen the whole time. */
+.button[hidden] { display: none; }
+
 .centered {
   margin: auto;
   text-align: center;
