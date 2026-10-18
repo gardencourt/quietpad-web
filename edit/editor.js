@@ -379,9 +379,16 @@ window.addEventListener("beforeunload", () => {
  *  it was when opened. A plain read call (files.get, not a write), run once
  *  right before an actual save rather than on every keystroke. */
 async function hasRemoteChange() {
-  if (Date.now() - lastLocalWriteAt < SKIP_CONFLICT_CHECK_WITHIN_MS) return false;
+  const sinceWrite = Date.now() - lastLocalWriteAt;
+  if (sinceWrite < SKIP_CONFLICT_CHECK_WITHIN_MS) {
+    return { changed: false, reason: `skipped, ${sinceWrite}ms since our own last write` };
+  }
   const meta = await driveFetch(`/drive/v3/files/${currentFileId}?fields=headRevisionId`);
-  return meta.headRevisionId !== openedHeadRevisionId;
+  const changed = meta.headRevisionId !== openedHeadRevisionId;
+  return {
+    changed,
+    reason: `opened=${openedHeadRevisionId} remote=${meta.headRevisionId} sinceWrite=${sinceWrite}ms`
+  };
 }
 
 async function save(skipConflictCheck) {
@@ -392,8 +399,10 @@ async function save(skipConflictCheck) {
     return;
   }
   try {
-    if (!skipConflictCheck && await hasRemoteChange()) {
-      debugLog("Remote change detected before save — holding, not overwriting");
+    const remoteCheck = skipConflictCheck ? { changed: false, reason: "skipped (Save anyway)" } : await hasRemoteChange();
+    if (remoteCheck.changed) {
+      debugLog("Remote change detected before save — holding, not overwriting. " + remoteCheck.reason);
+      document.getElementById("conflict-diagnostic").textContent = remoteCheck.reason;
       conflicted = true;
       conflictBanner.hidden = false;
       setSaveStatus("Not saved — changed elsewhere", true);

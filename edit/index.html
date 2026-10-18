@@ -65,7 +65,9 @@
       <button id="sign-out-button" class="button" type="button">Sign out</button>
     </div>
     <div id="conflict-banner" class="conflict-banner" hidden>
-      <span>This note changed elsewhere since it was opened.</span>
+      <span>This note changed elsewhere since it was opened.
+        <span id="conflict-diagnostic" style="display:block; font-size:0.75rem; opacity:0.8;"></span>
+      </span>
       <button id="conflict-reload-button" class="button" type="button">Reload latest</button>
       <button id="conflict-save-anyway-button" class="button" type="button">Save my version anyway</button>
     </div>
@@ -95,6 +97,6 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js" async defer></script>
   <script src="config.js?v=6"></script>
-  <script src="editor.js?v=11"></script>
+  <script src="editor.js?v=12"></script>
 </body>
 </html>
