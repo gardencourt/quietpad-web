@@ -17,17 +17,14 @@ const QUIETPAD_CONFIG = {
   // google_oauth_web_client_id on the Android side exactly.
   CLIENT_ID: "780542948149-a0rss7422ok4pq4pc4pofq2q4bls2qe3.apps.googleusercontent.com",
 
-  // API key for the Google Picker API (separate from the OAuth client above —
-  // Credentials → Create Credentials → API key, then restrict it to the
-  // Picker API and to this site's domain). NOT independently re-verified
-  // this session — Claude Code's own permission rules block revealing a
-  // live API key's value, so this couldn't be checked byte-for-byte against
-  // quietpad-507413's "API key 1" (which IS correctly set up: Google Drive
-  // API + Google Picker API only, referrers restricted to
+  // API key for the Google Picker API — quietpad-507413's "API key 1"
+  // (Google Drive API + Google Picker API only, referrers restricted to
   // https://quietpad.co.uk/*, https://www.quietpad.co.uk/*,
-  // http://localhost:5173/*). Worth a manual compare, given the CLIENT_ID
-  // above turned out to be from the wrong project entirely.
-  PICKER_API_KEY: "AIzaSyCxRC9lxN3I3nRbyyZjStd7hkIkKyOY86A",
+  // http://localhost:5173/*). The previous value here was the same wrong
+  // project as the old CLIENT_ID above ("The API developer key is invalid"
+  // in the Picker, confirmed live) — this is the real one, provided
+  // directly by the project owner.
+  PICKER_API_KEY: "AIzaSyBQh0zsj0kZFRInWvlR_OECTXT_6t_zfh4",
 
   // drive.file only — this app only ever sees a file once the user has
   // explicitly picked it (via Picker) or it was handed off directly by Drive
