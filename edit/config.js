@@ -6,15 +6,25 @@
 // filled in with real ones from the QuietPad Cloud Console project.
 
 const QUIETPAD_CONFIG = {
-  // OAuth 2.0 Web client ID (same Cloud Console project as the Android app —
-  // reuses its existing Web client, see README) — looks like
-  // "1234567890-abc...apps.googleusercontent.com".
-  CLIENT_ID: "512190405541-lob5ukih13kkmrsb49ei1jv8o12i83la.apps.googleusercontent.com",
+  // OAuth 2.0 Web client ID — must be the SAME Cloud Console project/client
+  // as the Android app (project quietpad-507413, client "QuietPad Web"),
+  // never a separate project: drive.file visibility is per-project, not
+  // global (see ANDROID-PARITY-HANDOFF.md's "Key finding", 2026-09-25 — a
+  // different project's client saw 0 of the Android app's files in the same
+  // Drive folder). This was previously set to a client in a DIFFERENT
+  // project (512190405541-...), which is why findAppFolderId() would never
+  // have found anything real. Matches app/src/main/res/values/strings.xml's
+  // google_oauth_web_client_id on the Android side exactly.
+  CLIENT_ID: "780542948149-a0rss7422ok4pq4pc4pofq2q4bls2qe3.apps.googleusercontent.com",
 
-  // API key for the Google Picker API (separate from the OAuth client above —
-  // Credentials → Create Credentials → API key, then restrict it to the
-  // Picker API and to this site's domain).
-  PICKER_API_KEY: "AIzaSyCxRC9lxN3I3nRbyyZjStd7hkIkKyOY86A",
+  // API key for the Google Picker API — quietpad-507413's "API key 1"
+  // (Google Drive API + Google Picker API only, referrers restricted to
+  // https://quietpad.co.uk/*, https://www.quietpad.co.uk/*,
+  // http://localhost:5173/*). The previous value here was the same wrong
+  // project as the old CLIENT_ID above ("The API developer key is invalid"
+  // in the Picker, confirmed live) — this is the real one, provided
+  // directly by the project owner.
+  PICKER_API_KEY: "AIzaSyBQh0zsj0kZFRInWvlR_OECTXT_6t_zfh4",
 
   // drive.file only — this app only ever sees a file once the user has
   // explicitly picked it (via Picker) or it was handed off directly by Drive

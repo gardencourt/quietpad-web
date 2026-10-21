@@ -21,12 +21,14 @@
 
     <h2>What QuietPad is</h2>
     <p>
-      QuietPad is a plain-text and Markdown note app for Android. It has no
-      server of its own: it talks directly to Google Drive's own API, using
-      your own Google account, to read and save your files. Signing in with
-      Google is entirely optional — skip it, and your notes, diary entries,
-      and attachments stay on that device only, never touching Drive or any
-      other service.
+      QuietPad is a plain-text and Markdown note app for Android, with a
+      small companion editor at quietpad.co.uk/edit/. Neither has a server
+      of its own: both talk directly to Google Drive's own API, using your
+      own Google account, to read and save your files. Signing in with
+      Google is entirely optional in the Android app — skip it, and your
+      notes, diary entries, and attachments stay on that device only, never
+      touching Drive or any other service. The web editor has no offline
+      mode: it only ever works on notes already in your Drive.
     </p>
 
     <h2>What we access</h2>
@@ -36,27 +38,40 @@
     <ul>
       <li>
         <code>drive.file</code> — access only to files you explicitly open
-        through QuietPad: a file you create in the app, one you pick via its
-        in-app file picker, or one you open with &ldquo;Open with
-        QuietPad&rdquo; directly from Google Drive. QuietPad cannot see,
-        list, or access any other file in your Drive.
+        through QuietPad: a file you create in the Android app, or one you
+        pick via a Picker, in the app or the web editor. QuietPad cannot
+        see, list, or access any other file in your Drive. The web editor
+        can only ever edit a note's existing content — it cannot create,
+        delete, rename, move, or upload files, and it refuses to open
+        anything outside your QuietPad folder or that isn't plain text.
       </li>
       <li>
         <code>drive.appdata</code> — a hidden, per-app data folder, invisible
         in your ordinary Drive view, used only by the Android app to record
         whether this Google account has already used QuietPad's free trial
         before. It holds a trial start date and nothing else — no note
-        content, no file names, nothing you've written.
+        content, no file names, nothing you've written. The web editor
+        never requests this scope.
       </li>
     </ul>
+    <p>
+      The Android app's hamburger menu can link to the web editor for the
+      account you're currently using — that email travels only in the
+      page's URL fragment (the part after <code>#</code>), which browsers
+      never send to any server, so it never reaches a log anywhere,
+      including ours.
+    </p>
 
     <h2>What we store</h2>
     <p>
-      Nothing on a QuietPad server of our own — we don't operate one. Your
-      notes, diary entries, and attachments are stored as plain files on
-      your own device, indexed in a local database the app keeps for
-      itself, and optionally synced to your own Google Drive if you've
-      signed in.
+      Nothing on a QuietPad server of our own — we don't operate one. In
+      the Android app, your notes, diary entries, and attachments are
+      stored as plain files on your own device, indexed in a local database
+      the app keeps for itself, and optionally synced to your own Google
+      Drive if you've signed in. The web editor keeps nothing beyond your
+      current browser tab: which file is open, kept only for that tab's
+      session so a reload doesn't lose your place, and gone once the tab
+      closes.
     </p>
 
     <h2>Other on-device features</h2>
